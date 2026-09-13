@@ -1,0 +1,24 @@
+## Build and Output Folders
+bin/
+obj/
+out/
+[Bb]in/
+[Oo]bj/
+
+## User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vscode/
+.idea/
+*.DotSettings.user
+
+## Visual Studio cache
+.vs/
+
+## Logs & temporary files
+*.log
+*.tmp
+.DS_Store

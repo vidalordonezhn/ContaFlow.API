@@ -1,0 +1,6 @@
+@ContaFlow.API_HostAddress = http://localhost:5057
+
+GET {{ContaFlow.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
