@@ -29,6 +29,7 @@ namespace ContaFlow.API.Data
         public DbSet<LibroDetalleItem> LibroDetalleItems => Set<LibroDetalleItem>();
         public DbSet<LibroVentaDetalleItem> LibrosVentasItems => Set<LibroVentaDetalleItem>();
         public DbSet<LibroCompraDetalleItem> LibrosComprasItems => Set<LibroCompraDetalleItem>();
+        public DbSet<ServicioCatalogo> ServiciosCatalogo => Set<ServicioCatalogo>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -47,6 +48,7 @@ namespace ContaFlow.API.Data
             modelBuilder.Entity<LibroDetalleItem>().ToTable("libros_detalle_items");
             modelBuilder.Entity<LibroVentaDetalleItem>().ToTable("libros_ventas_items");
             modelBuilder.Entity<LibroCompraDetalleItem>().ToTable("libros_compras_items");
+            modelBuilder.Entity<ServicioCatalogo>().ToTable("servicios_catalogo");
 
             // Relación LibroVentaDetalleItem -> PeriodoFiscalSAR
             modelBuilder.Entity<LibroVentaDetalleItem>()
