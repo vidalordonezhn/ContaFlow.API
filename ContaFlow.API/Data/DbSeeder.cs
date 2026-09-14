@@ -203,7 +203,38 @@ namespace ContaFlow.API.Data
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""ServiciosProfesionales"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""ImpuestoDeterminadoPagar"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""SaldoAFavorContribuyente"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
+
+                CREATE TABLE IF NOT EXISTS servicios_catalogo (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""Nombre"" VARCHAR(200) NOT NULL,
+                    ""DescripcionDefault"" VARCHAR(300),
+                    ""PrecioDefault"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Categoria"" VARCHAR(100) DEFAULT 'General',
+                    ""Activo"" BOOLEAN NOT NULL DEFAULT TRUE,
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
             ");
+
+            // Sembrar catálogo de productos / servicios iniciales si no existen
+            if (!await context.ServiciosCatalogo.AnyAsync())
+            {
+                var serviciosDefault = new[]
+                {
+                    new ServicioCatalogo { Nombre = "Talonario de Facturas", DescripcionDefault = "Talonario de facturas fiscales de 3 copias", PrecioDefault = 350, Categoria = "Talonarios", Activo = true },
+                    new ServicioCatalogo { Nombre = "Constancia Electrónica", DescripcionDefault = "Emisión de constancia electrónica fiscal ante el SAR", PrecioDefault = 250, Categoria = "SAR", Activo = true },
+                    new ServicioCatalogo { Nombre = "Pagos a Cuenta SAR", DescripcionDefault = "Cálculo y presentación de cuota trimestral de Pagos a Cuenta", PrecioDefault = 400, Categoria = "SAR", Activo = true },
+                    new ServicioCatalogo { Nombre = "Impuesto sobre la Renta", DescripcionDefault = "Declaración jurada y liquidación anual de ISR", PrecioDefault = 800, Categoria = "Declaraciones", Activo = true },
+                    new ServicioCatalogo { Nombre = "Controles Tributarios", DescripcionDefault = "Revisión y auditoría de control tributario mensual", PrecioDefault = 500, Categoria = "Auditoría", Activo = true },
+                    new ServicioCatalogo { Nombre = "Honorarios Mensuales", DescripcionDefault = "Asesoría contable y cumplimiento tributario mensual", PrecioDefault = 600, Categoria = "Honorarios", Activo = true },
+                    new ServicioCatalogo { Nombre = "Trámites en Línea SAR", DescripcionDefault = "Gestión de solicitudes y trámites en plataforma SAR", PrecioDefault = 300, Categoria = "SAR", Activo = true }
+                };
+
+                await context.ServiciosCatalogo.AddRangeAsync(serviciosDefault);
+                await context.SaveChangesAsync();
+            }
 
             // Sembrar catálogo de rubros iniciales si no existen
             if (!await context.Rubros.AnyAsync())
