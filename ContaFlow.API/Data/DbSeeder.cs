@@ -74,11 +74,21 @@ namespace ContaFlow.API.Data
                     ""ModificadoPor"" VARCHAR(100)
                 );
 
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""NumeroFiscal"" VARCHAR(30);
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""NumeroFiscal"" VARCHAR(60);
                 ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""AutorizacionCAIId"" INT;
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""Cai"" VARCHAR(45);
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""Cai"" VARCHAR(50);
                 ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""RangoAutorizado"" VARCHAR(100);
                 ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""FechaLimiteEmision"" TIMESTAMP WITH TIME ZONE;
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""ClienteId"" INT;
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""NombreCliente"" VARCHAR(200);
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""RtnCliente"" VARCHAR(50);
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""TipoComprobante"" VARCHAR(50) DEFAULT 'SinCAI';
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""MetodoPago"" VARCHAR(50);
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""Anulado"" BOOLEAN NOT NULL DEFAULT FALSE;
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""MotivoAnulacion"" VARCHAR(300);
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""ItemsJson"" TEXT;
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""Subtotal"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""Impuesto"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
 
                 CREATE TABLE IF NOT EXISTS seguimientos_fiscales_anuales (
                     ""Id"" SERIAL PRIMARY KEY,
