@@ -492,6 +492,85 @@ namespace ContaFlow.API.Data
                 await context.PeriodosFiscalesSAR.AddRangeAsync(sar1, sar2, sar3);
                 await context.SaveChangesAsync();
             }
+
+            // Enriquecer histórico para cliente Constructora Lempira si solo tiene 1 período
+            var clienteLempira = await context.Clientes.FirstOrDefaultAsync(c => c.Rtn == "05011978998877");
+            if (clienteLempira != null)
+            {
+                var anioActual = System.DateTime.UtcNow.Year;
+                var periodosLempira = await context.PeriodosFiscalesSAR.Where(p => p.ClienteId == clienteLempira.Id && p.Anio == anioActual).ToListAsync();
+                if (periodosLempira.Count < 6)
+                {
+                    var mesesHistoricos = new[]
+                    {
+                        new { Mes = 1, VentasGrav = 85000m, ComprasGrav = 62000m, Dec = "SAR-2026-01-00812" },
+                        new { Mes = 2, VentasGrav = 92000m, ComprasGrav = 71000m, Dec = "SAR-2026-02-00933" },
+                        new { Mes = 3, VentasGrav = 110000m, ComprasGrav = 80000m, Dec = "SAR-2026-03-01124" },
+                        new { Mes = 4, VentasGrav = 105000m, ComprasGrav = 78000m, Dec = "SAR-2026-04-01305" },
+                        new { Mes = 5, VentasGrav = 120000m, ComprasGrav = 95000m, Dec = "SAR-2026-05-01512" },
+                        new { Mes = 6, VentasGrav = 115000m, ComprasGrav = 88000m, Dec = "SAR-2026-06-01789" },
+                        new { Mes = 7, VentasGrav = 130000m, ComprasGrav = 100000m, Dec = "SAR-2026-07-02011" },
+                        new { Mes = 8, VentasGrav = 125000m, ComprasGrav = 90000m, Dec = "SAR-2026-08-02240" },
+                        new { Mes = 9, VentasGrav = 142500m, ComprasGrav = 110000m, Dec = "SAR-DEC-202609-00941" }
+                    };
+
+                    foreach (var m in mesesHistoricos)
+                    {
+                        var existente = periodosLempira.FirstOrDefault(p => p.Mes == m.Mes);
+                        var debito = m.VentasGrav * 0.15m;
+                        var credito = m.ComprasGrav * 0.15m;
+                        var impuesto = debito - credito;
+
+                        if (existente == null)
+                        {
+                            var nuevo = new PeriodoFiscalSAR
+                            {
+                                ClienteId = clienteLempira.Id,
+                                Mes = m.Mes,
+                                Anio = anioActual,
+                                FacturasRecibidas = true,
+                                FechaRecepcionFacturas = new DateTime(anioActual, m.Mes, 5, 10, 0, 0, DateTimeKind.Utc),
+                                CantidadFacturasVenta = 15 + m.Mes * 2,
+                                CantidadFacturasCompra = 20 + m.Mes * 3,
+                                VentasGravadas15 = m.VentasGrav,
+                                IsvDebito15 = debito,
+                                TotalDebitoFiscal = debito,
+                                ComprasGravadas15 = m.ComprasGrav,
+                                IsvCredito15 = credito,
+                                TotalCreditoFiscal = credito,
+                                ImpuestoDeterminadoPagar = impuesto > 0 ? impuesto : 0,
+                                SaldoAFavorContribuyente = impuesto < 0 ? Math.Abs(impuesto) : 0,
+                                LiquidadoSAR = true,
+                                FechaLiquidacion = new DateTime(anioActual, m.Mes, 9, 15, 30, 0, DateTimeKind.Utc),
+                                NumeroDeclaracionSAR = m.Dec,
+                                MontoImpuestoISV = impuesto > 0 ? impuesto : 0,
+                                Estado = "Declarado",
+                                FechaCreacion = System.DateTime.UtcNow,
+                                CreadoPor = "sistema"
+                            };
+                            context.PeriodosFiscalesSAR.Add(nuevo);
+                        }
+                        else
+                        {
+                            existente.VentasGravadas15 = m.VentasGrav;
+                            existente.IsvDebito15 = debito;
+                            existente.TotalDebitoFiscal = debito;
+                            existente.ComprasGravadas15 = m.ComprasGrav;
+                            existente.IsvCredito15 = credito;
+                            existente.TotalCreditoFiscal = credito;
+                            existente.ImpuestoDeterminadoPagar = impuesto > 0 ? impuesto : 0;
+                            existente.SaldoAFavorContribuyente = impuesto < 0 ? Math.Abs(impuesto) : 0;
+                            existente.LiquidadoSAR = true;
+                            existente.FechaLiquidacion = new DateTime(anioActual, m.Mes, 9, 15, 30, 0, DateTimeKind.Utc);
+                            existente.NumeroDeclaracionSAR = m.Dec;
+                            existente.MontoImpuestoISV = impuesto > 0 ? impuesto : 0;
+                            existente.Estado = "Declarado";
+                        }
+                    }
+                    await context.SaveChangesAsync();
+                }
+            }
         }
     }
 }
+
