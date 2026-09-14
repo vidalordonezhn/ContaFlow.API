@@ -153,5 +153,39 @@ namespace ContaFlow.API.Features.LibrosISV
             var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
             return File(bytes, "text/csv; charset=utf-8", $"Libro_Resumen_ISV_SAR210_{anio}_{mes:D2}.csv");
         }
+
+        // ==========================================
+        // === ENDPOINTS DUALES OFICIALES (VENTAS Y COMPRAS)
+        // ==========================================
+
+        [HttpGet("libro-completo/{clienteId:int}/{anio:int}/{mes:int}")]
+        [ProducesResponseType(typeof(LibroCompletoMensualDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetLibroCompleto(int clienteId, int anio, int mes)
+        {
+            try
+            {
+                var result = await _service.GetLibroCompletoAsync(clienteId, anio, mes);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { mensaje = ex.Message });
+            }
+        }
+
+        [HttpPost("libro-completo/guardar")]
+        [ProducesResponseType(typeof(LibroCompletoMensualDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GuardarLibroCompleto([FromBody] GuardarLibroCompletoRequest request)
+        {
+            try
+            {
+                var result = await _service.GuardarLibroCompletoAsync(request);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { mensaje = ex.Message });
+            }
+        }
     }
 }

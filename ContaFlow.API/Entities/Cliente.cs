@@ -27,5 +27,7 @@ namespace ContaFlow.API.Entities
         // Relaciones
         public ICollection<PagoHonorario> Pagos { get; set; } = new List<PagoHonorario>();
         public ICollection<PeriodoFiscalSAR> PeriodosFiscales { get; set; } = new List<PeriodoFiscalSAR>();
+        public ICollection<LibroVentaDetalleItem> LibrosVentas { get; set; } = new List<LibroVentaDetalleItem>();
+        public ICollection<LibroCompraDetalleItem> LibrosCompras { get; set; } = new List<LibroCompraDetalleItem>();
     }
 }

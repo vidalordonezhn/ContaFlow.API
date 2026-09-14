@@ -35,9 +35,12 @@ namespace ContaFlow.API.Entities
         public decimal IsvCredito18 { get; set; } = 0;
         public decimal TotalCreditoFiscal { get; set; } = 0;
 
-        // Liquidación SAR-210
+        // Liquidación SAR-210 & Hoja de Trabajo
         public decimal SaldoAFavorPeriodoAnterior { get; set; } = 0;
         public decimal RetencionesISVRecibidas { get; set; } = 0;
+        public decimal Retenciones15 { get; set; } = 0;
+        public decimal Retenciones18 { get; set; } = 0;
+        public decimal ServiciosProfesionales { get; set; } = 0;
         public decimal ImpuestoDeterminadoPagar { get; set; } = 0;
         public decimal SaldoAFavorContribuyente { get; set; } = 0;
 
@@ -50,5 +53,7 @@ namespace ContaFlow.API.Entities
         public string Estado { get; set; } = "Pendiente"; // Pendiente, EnProceso, Liquidado, Declarado
 
         public ICollection<LibroDetalleItem> DetalleItems { get; set; } = new List<LibroDetalleItem>();
+        public ICollection<LibroVentaDetalleItem> VentasDetalleItems { get; set; } = new List<LibroVentaDetalleItem>();
+        public ICollection<LibroCompraDetalleItem> ComprasDetalleItems { get; set; } = new List<LibroCompraDetalleItem>();
     }
 }

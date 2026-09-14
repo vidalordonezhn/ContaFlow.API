@@ -129,7 +129,50 @@ namespace ContaFlow.API.Data
                     ""ModificadoPor"" VARCHAR(100)
                 );
 
-                -- Columnas para Libros ISV (SAR-210)
+                CREATE TABLE IF NOT EXISTS libros_ventas_items (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""PeriodoFiscalId"" INT NOT NULL REFERENCES periodos_fiscales_sar(""Id"") ON DELETE CASCADE,
+                    ""ClienteId"" INT REFERENCES clientes(""Id"") ON DELETE CASCADE,
+                    ""Correlativo"" INT NOT NULL DEFAULT 1,
+                    ""Fecha"" TIMESTAMP WITH TIME ZONE,
+                    ""Factura"" VARCHAR(60),
+                    ""Exonerado"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Exento"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Gravado15"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Gravado18"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Isv15"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Isv18"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Total"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Notas"" VARCHAR(300),
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
+
+                CREATE TABLE IF NOT EXISTS libros_compras_items (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""PeriodoFiscalId"" INT NOT NULL REFERENCES periodos_fiscales_sar(""Id"") ON DELETE CASCADE,
+                    ""ClienteId"" INT REFERENCES clientes(""Id"") ON DELETE CASCADE,
+                    ""Correlativo"" INT NOT NULL DEFAULT 1,
+                    ""Fecha"" TIMESTAMP WITH TIME ZONE,
+                    ""Factura"" VARCHAR(60),
+                    ""Proveedor"" VARCHAR(200),
+                    ""Exonerado"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Exento"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Gravado15"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Gravado18"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Isv15"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Isv18"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Total"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Notas"" VARCHAR(300),
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
+
+                -- Columnas para Libros ISV (SAR-210) & Liquidación
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""VentasGravadas15"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""VentasGravadas18"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""VentasExentas"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
@@ -145,6 +188,9 @@ namespace ContaFlow.API.Data
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""TotalCreditoFiscal"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""SaldoAFavorPeriodoAnterior"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""RetencionesISVRecibidas"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
+                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""Retenciones15"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
+                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""Retenciones18"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
+                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""ServiciosProfesionales"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""ImpuestoDeterminadoPagar"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""SaldoAFavorContribuyente"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
             ");

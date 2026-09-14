@@ -163,4 +163,120 @@ namespace ContaFlow.API.Features.LibrosISV.DTOs
         public int TotalErrores { get; set; }
         public List<string> Mensajes { get; set; } = new();
     }
+
+    // === MODELOS DEL LIBRO COMPLETO (VENTAS, COMPRAS Y LIQUIDACIÓN SAR) ===
+
+    public class LibroVentaItemDto
+    {
+        public int Id { get; set; }
+        public int Correlativo { get; set; }
+        public string? Fecha { get; set; } // yyyy-MM-dd
+        public string? Factura { get; set; }
+        public decimal Exonerado { get; set; }
+        public decimal Exento { get; set; }
+        public decimal Gravado15 { get; set; }
+        public decimal Gravado18 { get; set; }
+        public decimal Isv15 { get; set; }
+        public decimal Isv18 { get; set; }
+        public decimal Total { get; set; }
+        public string? Notas { get; set; }
+    }
+
+    public class LibroCompraItemDto
+    {
+        public int Id { get; set; }
+        public int Correlativo { get; set; }
+        public string? Fecha { get; set; } // yyyy-MM-dd
+        public string? Factura { get; set; }
+        public string? Proveedor { get; set; }
+        public decimal Exonerado { get; set; }
+        public decimal Exento { get; set; }
+        public decimal Gravado15 { get; set; }
+        public decimal Gravado18 { get; set; }
+        public decimal Isv15 { get; set; }
+        public decimal Isv18 { get; set; }
+        public decimal Total { get; set; }
+        public string? Notas { get; set; }
+    }
+
+    public class ResumenVentasCasillasDto
+    {
+        public decimal TotalExonerado { get; set; }
+        public decimal TotalExento { get; set; }
+        public decimal TotalGravado15 { get; set; }
+        public decimal TotalGravado18 { get; set; }
+        public decimal TotalIsv15 { get; set; }
+        public decimal TotalIsv18 { get; set; }
+        public decimal TotalDebitoFiscal => TotalIsv15 + TotalIsv18;
+        public decimal TotalGeneral => TotalExonerado + TotalExento + TotalGravado15 + TotalGravado18 + TotalIsv15 + TotalIsv18;
+    }
+
+    public class ResumenComprasCasillasDto
+    {
+        public decimal TotalExonerado { get; set; }
+        public decimal TotalExento { get; set; }
+        public decimal TotalGravado15 { get; set; }
+        public decimal TotalGravado18 { get; set; }
+        public decimal TotalIsv15 { get; set; }
+        public decimal TotalIsv18 { get; set; }
+        public decimal TotalCreditoFiscal => TotalIsv15 + TotalIsv18;
+        public decimal TotalGeneral => TotalExonerado + TotalExento + TotalGravado15 + TotalGravado18 + TotalIsv15 + TotalIsv18;
+    }
+
+    public class LiquidacionConsolidadaDto
+    {
+        public decimal DebitoFiscalVentas { get; set; }
+        public decimal CreditoFiscalCompras { get; set; }
+        public decimal DiferenciaIsv => DebitoFiscalVentas - CreditoFiscalCompras;
+        public decimal SaldoAFavorPeriodoAnterior { get; set; }
+        public decimal Retenciones15 { get; set; }
+        public decimal Retenciones18 { get; set; }
+        public decimal TotalRetenciones => Retenciones15 + Retenciones18;
+        public decimal LiquidacionFinalPagar { get; set; }
+        public decimal SaldoAFavorContribuyente { get; set; }
+        public decimal ServiciosProfesionales { get; set; }
+        public decimal TotalPagarLps { get; set; }
+    }
+
+    public class LibroCompletoMensualDto
+    {
+        public int PeriodoFiscalId { get; set; }
+        public int ClienteId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string ClienteRtn { get; set; } = string.Empty;
+        public string? ClienteContrasenaSAR { get; set; }
+        public decimal CuotaHonorarios { get; set; }
+        public int Mes { get; set; }
+        public int Anio { get; set; }
+        public string MesNombre { get; set; } = string.Empty;
+
+        public List<LibroVentaItemDto> VentasItems { get; set; } = new();
+        public List<LibroCompraItemDto> ComprasItems { get; set; } = new();
+
+        public ResumenVentasCasillasDto ResumenVentas { get; set; } = new();
+        public ResumenComprasCasillasDto ResumenCompras { get; set; } = new();
+        public LiquidacionConsolidadaDto Liquidacion { get; set; } = new();
+
+        public bool LiquidadoSAR { get; set; }
+        public DateTime? FechaLiquidacion { get; set; }
+        public string? NumeroDeclaracionSAR { get; set; }
+        public string Estado { get; set; } = "Pendiente";
+    }
+
+    public class GuardarLibroCompletoRequest
+    {
+        public int ClienteId { get; set; }
+        public int Mes { get; set; }
+        public int Anio { get; set; }
+
+        public decimal SaldoAFavorPeriodoAnterior { get; set; }
+        public decimal Retenciones15 { get; set; }
+        public decimal Retenciones18 { get; set; }
+        public decimal? ServiciosProfesionales { get; set; }
+        public bool MarcarComoLiquidado { get; set; }
+        public string? NumeroDeclaracionSAR { get; set; }
+
+        public List<LibroVentaItemDto> VentasItems { get; set; } = new();
+        public List<LibroCompraItemDto> ComprasItems { get; set; } = new();
+    }
 }
