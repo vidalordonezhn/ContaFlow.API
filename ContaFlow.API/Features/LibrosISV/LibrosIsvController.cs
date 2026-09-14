@@ -187,5 +187,21 @@ namespace ContaFlow.API.Features.LibrosISV
                 return NotFound(new { mensaje = ex.Message });
             }
         }
+
+        [HttpGet("cliente/{clienteId:int}/historico/{anio:int}")]
+        [ProducesResponseType(typeof(ResumenHistoricoClienteDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetHistoricoCliente(int clienteId, int anio)
+        {
+            try
+            {
+                var result = await _service.GetHistoricoClienteAsync(clienteId, anio);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { mensaje = ex.Message });
+            }
+        }
     }
 }
+

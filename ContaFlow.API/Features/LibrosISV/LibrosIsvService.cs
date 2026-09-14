@@ -871,5 +871,89 @@ namespace ContaFlow.API.Features.LibrosISV
 
             return await GetLibroCompletoAsync(request.ClienteId, request.Anio, request.Mes);
         }
+
+        public async Task<ResumenHistoricoClienteDto> GetHistoricoClienteAsync(int clienteId, int anio)
+        {
+            var cliente = await _context.Clientes.FindAsync(clienteId);
+            if (cliente == null)
+            {
+                throw new KeyNotFoundException("Cliente no encontrado.");
+            }
+
+            var periodosExistentes = await _context.PeriodosFiscalesSAR
+                .Where(p => p.ClienteId == clienteId && p.Anio == anio)
+                .ToListAsync();
+
+            var culture = new CultureInfo("es-HN");
+            var listaPeriodos = new List<PeriodoHistoricoClienteDto>();
+
+            for (int m = 1; m <= 12; m++)
+            {
+                var p = periodosExistentes.FirstOrDefault(x => x.Mes == m);
+                var nombreMes = culture.DateTimeFormat.GetMonthName(m);
+                nombreMes = char.ToUpper(nombreMes[0]) + nombreMes.Substring(1);
+
+                if (p != null)
+                {
+                    listaPeriodos.Add(new PeriodoHistoricoClienteDto
+                    {
+                        Id = p.Id,
+                        Mes = m,
+                        Anio = anio,
+                        MesNombre = $"{nombreMes} {anio}",
+                        FacturasRecibidas = p.FacturasRecibidas,
+                        CantidadFacturasVenta = p.CantidadFacturasVenta,
+                        CantidadFacturasCompra = p.CantidadFacturasCompra,
+                        TotalVentas = p.VentasGravadas15 + p.VentasGravadas18 + p.VentasExentas,
+                        TotalCompras = p.ComprasGravadas15 + p.ComprasGravadas18 + p.ComprasExentas + p.ImportacionesGravadas15,
+                        TotalDebitoFiscal = p.TotalDebitoFiscal,
+                        TotalCreditoFiscal = p.TotalCreditoFiscal,
+                        ImpuestoDeterminadoPagar = p.ImpuestoDeterminadoPagar,
+                        SaldoAFavorContribuyente = p.SaldoAFavorContribuyente,
+                        LiquidadoSAR = p.LiquidadoSAR,
+                        FechaLiquidacion = p.FechaLiquidacion,
+                        NumeroDeclaracionSAR = p.NumeroDeclaracionSAR,
+                        Estado = p.Estado
+                    });
+                }
+                else
+                {
+                    listaPeriodos.Add(new PeriodoHistoricoClienteDto
+                    {
+                        Id = 0,
+                        Mes = m,
+                        Anio = anio,
+                        MesNombre = $"{nombreMes} {anio}",
+                        FacturasRecibidas = false,
+                        CantidadFacturasVenta = 0,
+                        CantidadFacturasCompra = 0,
+                        TotalVentas = 0,
+                        TotalCompras = 0,
+                        TotalDebitoFiscal = 0,
+                        TotalCreditoFiscal = 0,
+                        ImpuestoDeterminadoPagar = 0,
+                        SaldoAFavorContribuyente = 0,
+                        LiquidadoSAR = false,
+                        FechaLiquidacion = null,
+                        NumeroDeclaracionSAR = null,
+                        Estado = "Pendiente"
+                    });
+                }
+            }
+
+            return new ResumenHistoricoClienteDto
+            {
+                ClienteId = cliente.Id,
+                ClienteNombre = cliente.NombreRazonSocial,
+                ClienteRtn = cliente.Rtn,
+                Anio = anio,
+                TotalVentasAnuales = listaPeriodos.Sum(x => x.TotalVentas),
+                TotalComprasAnuales = listaPeriodos.Sum(x => x.TotalCompras),
+                TotalImpuestoPagadoAnual = listaPeriodos.Sum(x => x.ImpuestoDeterminadoPagar),
+                MesesDeclarados = listaPeriodos.Count(x => x.LiquidadoSAR),
+                Periodos = listaPeriodos
+            };
+        }
     }
 }
+

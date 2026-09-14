@@ -279,4 +279,39 @@ namespace ContaFlow.API.Features.LibrosISV.DTOs
         public List<LibroVentaItemDto> VentasItems { get; set; } = new();
         public List<LibroCompraItemDto> ComprasItems { get; set; } = new();
     }
+
+    public class PeriodoHistoricoClienteDto
+    {
+        public int Id { get; set; }
+        public int Mes { get; set; }
+        public int Anio { get; set; }
+        public string MesNombre { get; set; } = string.Empty;
+        public bool FacturasRecibidas { get; set; }
+        public int CantidadFacturasVenta { get; set; }
+        public int CantidadFacturasCompra { get; set; }
+        public decimal TotalVentas { get; set; }
+        public decimal TotalCompras { get; set; }
+        public decimal TotalDebitoFiscal { get; set; }
+        public decimal TotalCreditoFiscal { get; set; }
+        public decimal ImpuestoDeterminadoPagar { get; set; }
+        public decimal SaldoAFavorContribuyente { get; set; }
+        public bool LiquidadoSAR { get; set; }
+        public DateTime? FechaLiquidacion { get; set; }
+        public string? NumeroDeclaracionSAR { get; set; }
+        public string Estado { get; set; } = "Pendiente";
+    }
+
+    public class ResumenHistoricoClienteDto
+    {
+        public int ClienteId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string ClienteRtn { get; set; } = string.Empty;
+        public int Anio { get; set; }
+        public decimal TotalVentasAnuales { get; set; }
+        public decimal TotalComprasAnuales { get; set; }
+        public decimal TotalImpuestoPagadoAnual { get; set; }
+        public int MesesDeclarados { get; set; }
+        public List<PeriodoHistoricoClienteDto> Periodos { get; set; } = new();
+    }
 }
+
