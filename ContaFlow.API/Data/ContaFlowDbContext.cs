@@ -30,6 +30,7 @@ namespace ContaFlow.API.Data
         public DbSet<LibroVentaDetalleItem> LibrosVentasItems => Set<LibroVentaDetalleItem>();
         public DbSet<LibroCompraDetalleItem> LibrosComprasItems => Set<LibroCompraDetalleItem>();
         public DbSet<ServicioCatalogo> ServiciosCatalogo => Set<ServicioCatalogo>();
+        public DbSet<RecordatorioCliente> RecordatoriosClientes => Set<RecordatorioCliente>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -49,6 +50,7 @@ namespace ContaFlow.API.Data
             modelBuilder.Entity<LibroVentaDetalleItem>().ToTable("libros_ventas_items");
             modelBuilder.Entity<LibroCompraDetalleItem>().ToTable("libros_compras_items");
             modelBuilder.Entity<ServicioCatalogo>().ToTable("servicios_catalogo");
+            modelBuilder.Entity<RecordatorioCliente>().ToTable("recordatorios_clientes");
 
             // Seed inicial de Servicios / Productos
             modelBuilder.Entity<ServicioCatalogo>().HasData(
@@ -117,6 +119,13 @@ namespace ContaFlow.API.Data
                 .HasOne(pf => pf.Cliente)
                 .WithMany(c => c.PeriodosFiscales)
                 .HasForeignKey(pf => pf.ClienteId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Relación Cliente -> RecordatoriosClientes
+            modelBuilder.Entity<RecordatorioCliente>()
+                .HasOne(r => r.Cliente)
+                .WithMany()
+                .HasForeignKey(r => r.ClienteId)
                 .OnDelete(DeleteBehavior.Cascade);
         }
 

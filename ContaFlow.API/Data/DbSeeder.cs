@@ -216,6 +216,23 @@ namespace ContaFlow.API.Data
                     ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
                     ""ModificadoPor"" VARCHAR(100)
                 );
+
+                CREATE TABLE IF NOT EXISTS recordatorios_clientes (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""ClienteId"" INT NOT NULL REFERENCES clientes(""Id"") ON DELETE CASCADE,
+                    ""Tipo"" VARCHAR(50) NOT NULL DEFAULT 'SAR',
+                    ""Titulo"" VARCHAR(150),
+                    ""Mensaje"" TEXT NOT NULL,
+                    ""Canal"" VARCHAR(50) NOT NULL DEFAULT 'WhatsApp',
+                    ""Estado"" VARCHAR(50) NOT NULL DEFAULT 'Pendiente',
+                    ""FechaEnvio"" TIMESTAMP WITH TIME ZONE,
+                    ""TelefonoDestino"" VARCHAR(50),
+                    ""EmailDestino"" VARCHAR(120),
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
             ");
 
             // Sembrar catálogo de productos / servicios iniciales si no existen
