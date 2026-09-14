@@ -50,6 +50,17 @@ namespace ContaFlow.API.Data
             modelBuilder.Entity<LibroCompraDetalleItem>().ToTable("libros_compras_items");
             modelBuilder.Entity<ServicioCatalogo>().ToTable("servicios_catalogo");
 
+            // Seed inicial de Servicios / Productos
+            modelBuilder.Entity<ServicioCatalogo>().HasData(
+                new ServicioCatalogo { Id = 1, Nombre = "Talonario de Facturas", DescripcionDefault = "Talonario de facturas fiscales de 3 copias", PrecioDefault = 350, Categoria = "Talonarios", Activo = true, FechaCreacion = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreadoPor = "sistema" },
+                new ServicioCatalogo { Id = 2, Nombre = "Constancia Electrónica", DescripcionDefault = "Emisión de constancia electrónica fiscal ante el SAR", PrecioDefault = 250, Categoria = "SAR", Activo = true, FechaCreacion = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreadoPor = "sistema" },
+                new ServicioCatalogo { Id = 3, Nombre = "Pagos a Cuenta SAR", DescripcionDefault = "Cálculo y presentación de cuota trimestral de Pagos a Cuenta", PrecioDefault = 400, Categoria = "SAR", Activo = true, FechaCreacion = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreadoPor = "sistema" },
+                new ServicioCatalogo { Id = 4, Nombre = "Impuesto sobre la Renta", DescripcionDefault = "Declaración jurada y liquidación anual de ISR", PrecioDefault = 800, Categoria = "Declaraciones", Activo = true, FechaCreacion = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreadoPor = "sistema" },
+                new ServicioCatalogo { Id = 5, Nombre = "Controles Tributarios", DescripcionDefault = "Revisión y auditoría de control tributario mensual", PrecioDefault = 500, Categoria = "Auditoría", Activo = true, FechaCreacion = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreadoPor = "sistema" },
+                new ServicioCatalogo { Id = 6, Nombre = "Honorarios Mensuales", DescripcionDefault = "Asesoría contable y cumplimiento tributario mensual", PrecioDefault = 600, Categoria = "Honorarios", Activo = true, FechaCreacion = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreadoPor = "sistema" },
+                new ServicioCatalogo { Id = 7, Nombre = "Trámites en Línea SAR", DescripcionDefault = "Gestión de solicitudes y trámites en plataforma SAR", PrecioDefault = 300, Categoria = "SAR", Activo = true, FechaCreacion = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), CreadoPor = "sistema" }
+            );
+
             // Relación LibroVentaDetalleItem -> PeriodoFiscalSAR
             modelBuilder.Entity<LibroVentaDetalleItem>()
                 .HasOne(v => v.PeriodoFiscal)
