@@ -83,12 +83,21 @@ namespace ContaFlow.API.Data
                 .HasForeignKey(p => p.ClienteId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Relación PagoHonorario -> Recibo (1 a 1)
+            // Relación PagoHonorario -> Recibo (1 a 1 opcional)
             modelBuilder.Entity<Recibo>()
                 .HasOne(r => r.PagoHonorario)
                 .WithOne(p => p.Recibo)
                 .HasForeignKey<Recibo>(r => r.PagoHonorarioId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Relación Cliente -> Recibos
+            modelBuilder.Entity<Recibo>()
+                .HasOne(r => r.Cliente)
+                .WithMany()
+                .HasForeignKey(r => r.ClienteId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // Relación Cliente -> PeriodosFiscalesSAR
             modelBuilder.Entity<PeriodoFiscalSAR>()

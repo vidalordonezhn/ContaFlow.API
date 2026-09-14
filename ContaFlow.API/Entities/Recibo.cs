@@ -5,8 +5,10 @@ namespace ContaFlow.API.Entities
     public class Recibo : AuditableEntity
     {
         public int Id { get; set; }
-        public int PagoHonorarioId { get; set; }
-        public PagoHonorario PagoHonorario { get; set; } = null!;
+        public int? PagoHonorarioId { get; set; }
+        public PagoHonorario? PagoHonorario { get; set; }
+
+        public string TipoComprobante { get; set; } = "SinCAI"; // "SinCAI" o "ConCAI"
 
         public string NumeroRecibo { get; set; } = string.Empty; // Ej: "REC-2026-0001"
         public string? NumeroFiscal { get; set; } // Ej: "000-001-01-00000001"
@@ -18,11 +20,18 @@ namespace ContaFlow.API.Entities
 
         public DateTime FechaEmision { get; set; } = DateTime.UtcNow;
         public string Concepto { get; set; } = string.Empty;
+        public decimal Subtotal { get; set; }
+        public decimal Impuesto { get; set; }
         public decimal Monto { get; set; }
         public string MontoEnLetras { get; set; } = string.Empty;
+        
+        public int? ClienteId { get; set; }
+        public Cliente? Cliente { get; set; }
         public string? NombreCliente { get; set; }
         public string? RtnCliente { get; set; }
+        public string? MetodoPago { get; set; }
         public bool Anulado { get; set; } = false;
         public string? MotivoAnulacion { get; set; }
+        public string? ItemsJson { get; set; }
     }
 }
