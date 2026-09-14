@@ -835,18 +835,36 @@ namespace ContaFlow.API.Features.LibrosISV
                 periodo.SaldoAFavorContribuyente = Math.Round(Math.Abs(diferencia), 2);
             }
 
-            periodo.MontoImpuestoISV = periodo.ImpuestoDeterminadoPagar;
+            var cantVentas = nuevasVentas.Count(v => !string.IsNullOrWhiteSpace(v.Factura) || v.Total > 0 || v.Gravado15 > 0 || v.Gravado18 > 0 || v.Exento > 0 || v.Exonerado > 0);
+            var cantCompras = nuevasCompras.Count(c => !string.IsNullOrWhiteSpace(c.Factura) || !string.IsNullOrWhiteSpace(c.Proveedor) || c.Total > 0 || c.Gravado15 > 0 || c.Gravado18 > 0 || c.Exento > 0 || c.Exonerado > 0);
+            var hayFacturas = cantVentas > 0 || cantCompras > 0;
 
-            if (request.MarcarComoLiquidado)
+            periodo.CantidadFacturasVenta = cantVentas;
+            periodo.CantidadFacturasCompra = cantCompras;
+            periodo.FacturasRecibidas = hayFacturas;
+            if (hayFacturas && periodo.FechaRecepcionFacturas == null)
+            {
+                periodo.FechaRecepcionFacturas = DateTime.UtcNow;
+            }
+            else if (!hayFacturas)
+            {
+                periodo.FechaRecepcionFacturas = null;
+            }
+
+            if (request.MarcarComoLiquidado || !string.IsNullOrWhiteSpace(request.NumeroDeclaracionSAR))
             {
                 periodo.LiquidadoSAR = true;
                 periodo.FechaLiquidacion = DateTime.UtcNow;
                 periodo.NumeroDeclaracionSAR = request.NumeroDeclaracionSAR?.Trim();
                 periodo.Estado = "Declarado";
             }
-            else if (nuevasVentas.Count > 0 || nuevasCompras.Count > 0)
+            else if (hayFacturas)
             {
                 periodo.Estado = "EnProceso";
+            }
+            else
+            {
+                periodo.Estado = "Pendiente";
             }
 
             await _context.SaveChangesAsync();

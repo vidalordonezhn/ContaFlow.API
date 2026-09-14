@@ -26,6 +26,8 @@ namespace ContaFlow.API.Features.SARControl
 
             var periodos = await _context.PeriodosFiscalesSAR
                 .Include(p => p.Cliente)
+                .Include(p => p.VentasDetalleItems)
+                .Include(p => p.ComprasDetalleItems)
                 .Where(p => p.Mes == mes && p.Anio == anio && p.Cliente.Activo)
                 .OrderBy(p => p.Cliente.NombreRazonSocial)
                 .ToListAsync();
@@ -34,10 +36,21 @@ namespace ContaFlow.API.Features.SARControl
 
             return periodos.Select(p =>
             {
+                var cantVentas = p.CantidadFacturasVenta > 0
+                    ? p.CantidadFacturasVenta
+                    : (p.VentasDetalleItems?.Count(v => !string.IsNullOrWhiteSpace(v.Factura) || v.Total > 0 || v.Gravado15 > 0 || v.Gravado18 > 0 || v.Exento > 0 || v.Exonerado > 0) ?? 0);
+
+                var cantCompras = p.CantidadFacturasCompra > 0
+                    ? p.CantidadFacturasCompra
+                    : (p.ComprasDetalleItems?.Count(c => !string.IsNullOrWhiteSpace(c.Factura) || !string.IsNullOrWhiteSpace(c.Proveedor) || c.Total > 0 || c.Gravado15 > 0 || c.Gravado18 > 0 || c.Exento > 0 || c.Exonerado > 0) ?? 0);
+
+                var tieneFacturas = p.FacturasRecibidas || cantVentas > 0 || cantCompras > 0 || p.TotalDebitoFiscal > 0 || p.TotalCreditoFiscal > 0;
+                var estaLiquidado = p.LiquidadoSAR || !string.IsNullOrWhiteSpace(p.NumeroDeclaracionSAR);
+
                 var semaforo = "Rojo";
-                if (p.LiquidadoSAR)
+                if (estaLiquidado)
                     semaforo = "Verde";
-                else if (p.FacturasRecibidas)
+                else if (tieneFacturas)
                     semaforo = "Amarillo";
 
                 var nombreMes = culture.DateTimeFormat.GetMonthName(p.Mes);
@@ -55,17 +68,17 @@ namespace ContaFlow.API.Features.SARControl
                     Mes = p.Mes,
                     Anio = p.Anio,
                     MesNombre = $"{nombreMes} {p.Anio}",
-                    FacturasRecibidas = p.FacturasRecibidas,
+                    FacturasRecibidas = tieneFacturas,
                     FechaRecepcionFacturas = p.FechaRecepcionFacturas,
-                    CantidadFacturasVenta = p.CantidadFacturasVenta,
-                    CantidadFacturasCompra = p.CantidadFacturasCompra,
+                    CantidadFacturasVenta = cantVentas,
+                    CantidadFacturasCompra = cantCompras,
                     NotasDocumentos = p.NotasDocumentos,
-                    LiquidadoSAR = p.LiquidadoSAR,
+                    LiquidadoSAR = estaLiquidado,
                     FechaLiquidacion = p.FechaLiquidacion,
                     MontoImpuestoISV = p.MontoImpuestoISV,
                     MontoRetenciones = p.MontoRetenciones,
                     NumeroDeclaracionSAR = p.NumeroDeclaracionSAR,
-                    Estado = p.Estado,
+                    Estado = estaLiquidado ? "Declarado" : (tieneFacturas ? "EnProceso" : "Pendiente"),
                     NivelSemaforo = semaforo
                 };
             }).ToList();
@@ -77,12 +90,14 @@ namespace ContaFlow.API.Features.SARControl
 
             var periodos = await _context.PeriodosFiscalesSAR
                 .Include(p => p.Cliente)
+                .Include(p => p.VentasDetalleItems)
+                .Include(p => p.ComprasDetalleItems)
                 .Where(p => p.Mes == mes && p.Anio == anio && p.Cliente.Activo)
                 .ToListAsync();
 
             var total = periodos.Count;
-            var recibidas = periodos.Count(p => p.FacturasRecibidas);
-            var liquidados = periodos.Count(p => p.LiquidadoSAR);
+            var recibidas = periodos.Count(p => p.FacturasRecibidas || (p.VentasDetalleItems != null && p.VentasDetalleItems.Any()) || (p.ComprasDetalleItems != null && p.ComprasDetalleItems.Any()) || p.TotalDebitoFiscal > 0 || p.TotalCreditoFiscal > 0);
+            var liquidados = periodos.Count(p => p.LiquidadoSAR || !string.IsNullOrWhiteSpace(p.NumeroDeclaracionSAR));
             var pendientes = total - recibidas;
 
             var ahora = DateTime.UtcNow;
