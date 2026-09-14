@@ -295,5 +295,133 @@ namespace ContaFlow.API.Features.Clientes
                 TotalHonorariosPagados = totalHonorarios
             };
         }
+
+        // ==========================================
+        // IMPORTACIÓN MASIVA DE CLIENTES (EXCEL/CSV)
+        // ==========================================
+
+        public async Task<ClienteImportResponseDto> ImportarClientesMasivoAsync(List<ClienteImportItemDto> items)
+        {
+            var response = new ClienteImportResponseDto
+            {
+                TotalProcesados = items.Count
+            };
+
+            if (items == null || items.Count == 0)
+            {
+                response.Mensajes.Add("No se enviaron registros para procesar.");
+                return response;
+            }
+
+            var clientesExistentes = await _context.Clientes.ToListAsync();
+            var clientesDict = clientesExistentes.ToDictionary(c => c.Rtn.Trim().Replace("-", "").ToUpper(), c => c);
+
+            var rubrosExistentes = await _context.Rubros.ToListAsync();
+            var rubrosDict = rubrosExistentes.ToDictionary(r => r.Nombre.Trim().ToUpper(), r => r);
+
+            int seq = 1;
+            foreach (var item in items)
+            {
+                var cleanRtn = (item.Rtn ?? string.Empty).Trim().Replace("-", "").Replace(" ", "").ToUpper();
+                var razonSocial = (item.NombreRazonSocial ?? string.Empty).Trim();
+
+                if (string.IsNullOrWhiteSpace(cleanRtn))
+                {
+                    response.TotalErrores++;
+                    response.Mensajes.Add($"Fila #{seq}: El RTN está vacío.");
+                    seq++;
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(razonSocial))
+                {
+                    response.TotalErrores++;
+                    response.Mensajes.Add($"Fila #{seq} (RTN {cleanRtn}): La Razón Social o Nombre es obligatorio.");
+                    seq++;
+                    continue;
+                }
+
+                // Asegurar Rubro
+                var rubroNombre = string.IsNullOrWhiteSpace(item.Rubro) ? "Comercio General" : item.Rubro.Trim();
+                if (!rubrosDict.TryGetValue(rubroNombre.ToUpper(), out var rubroObj))
+                {
+                    rubroObj = new Rubro
+                    {
+                        Nombre = rubroNombre,
+                        Descripcion = $"Rubro creado automáticamente ({rubroNombre})",
+                        Activo = true
+                    };
+                    _context.Rubros.Add(rubroObj);
+                    await _context.SaveChangesAsync();
+                    rubrosDict[rubroNombre.ToUpper()] = rubroObj;
+                }
+
+                var tipoPersona = (item.TipoPersona ?? string.Empty).Trim().ToLower() == "natural" ? "Natural" : "Juridica";
+                var diaCobro = item.DiaCobro >= 1 && item.DiaCobro <= 31 ? item.DiaCobro : 5;
+                var cuota = item.CuotaMensual >= 0 ? item.CuotaMensual : 0.00m;
+
+                if (clientesDict.TryGetValue(cleanRtn, out var clienteExistente))
+                {
+                    // Actualizar cliente existente
+                    clienteExistente.NombreRazonSocial = razonSocial;
+                    if (!string.IsNullOrWhiteSpace(item.NombreComercial)) clienteExistente.NombreComercial = item.NombreComercial.Trim();
+                    clienteExistente.TipoPersona = tipoPersona;
+                    clienteExistente.Rubro = rubroNombre;
+                    if (!string.IsNullOrWhiteSpace(item.ContrasenaSAR)) clienteExistente.ContrasenaSAR = item.ContrasenaSAR.Trim();
+                    if (!string.IsNullOrWhiteSpace(item.EmailPrincipal)) clienteExistente.EmailPrincipal = item.EmailPrincipal.Trim();
+                    if (!string.IsNullOrWhiteSpace(item.EmailSecundario)) clienteExistente.EmailSecundario = item.EmailSecundario.Trim();
+                    if (!string.IsNullOrWhiteSpace(item.Telefono)) clienteExistente.Telefono = item.Telefono.Trim();
+                    if (!string.IsNullOrWhiteSpace(item.TelefonoWhatsApp)) clienteExistente.TelefonoWhatsApp = item.TelefonoWhatsApp.Trim();
+                    if (!string.IsNullOrWhiteSpace(item.Direccion)) clienteExistente.Direccion = item.Direccion.Trim();
+                    if (cuota > 0) clienteExistente.CuotaMensual = cuota;
+                    clienteExistente.DiaCobro = diaCobro;
+                    if (!string.IsNullOrWhiteSpace(item.Notas)) clienteExistente.Notas = item.Notas.Trim();
+                    clienteExistente.Activo = true;
+
+                    response.TotalActualizados++;
+                }
+                else
+                {
+                    // Crear nuevo cliente
+                    var nuevoCliente = new Cliente
+                    {
+                        Rtn = cleanRtn,
+                        NombreRazonSocial = razonSocial,
+                        NombreComercial = item.NombreComercial?.Trim(),
+                        TipoPersona = tipoPersona,
+                        Rubro = rubroNombre,
+                        ContrasenaSAR = item.ContrasenaSAR?.Trim(),
+                        EmailPrincipal = item.EmailPrincipal?.Trim(),
+                        EmailSecundario = item.EmailSecundario?.Trim(),
+                        Telefono = item.Telefono?.Trim(),
+                        TelefonoWhatsApp = item.TelefonoWhatsApp?.Trim(),
+                        Direccion = item.Direccion?.Trim(),
+                        CuotaMensual = cuota,
+                        DiaCobro = diaCobro,
+                        Notas = item.Notas?.Trim(),
+                        Activo = true
+                    };
+
+                    _context.Clientes.Add(nuevoCliente);
+                    clientesDict[cleanRtn] = nuevoCliente;
+                    response.TotalGuardados++;
+                }
+
+                seq++;
+            }
+
+            await _context.SaveChangesAsync();
+            return response;
+        }
+
+        public byte[] GenerarPlantillaClientesCsv()
+        {
+            var csv = new System.Text.StringBuilder();
+            csv.AppendLine("RTN,NombreRazonSocial,NombreComercial,TipoPersona,Rubro,ContrasenaSAR,EmailPrincipal,EmailSecundario,Telefono,TelefonoWhatsApp,Direccion,CuotaMensual,DiaCobro,Notas");
+            csv.AppendLine("08011990123456,DISTRIBUIDORA EJEMPLO S.A.,Comercial Ejemplo,Juridica,Comercio General,SarPass2026*,contacto@ejemplo.hn,,+504 2235-0000,+504 9988-7766,Tegucigalpa M.D.C.,2500.00,5,Cliente Activo");
+            csv.AppendLine("08011985654321,JUAN CARLOS PEREZ LOPEZ,Taller Perez,Natural,Servicios,Perez2026*,juan@taller.hn,,+504 2550-1122,+504 8877-6655,San Pedro Sula,1800.00,10,Declara ISV mensual");
+
+            return System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
+        }
     }
 }

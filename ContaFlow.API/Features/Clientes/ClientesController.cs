@@ -117,5 +117,30 @@ namespace ContaFlow.API.Features.Clientes
                 return NotFound(new { mensaje = ex.Message });
             }
         }
+
+        // ==========================================
+        // IMPORTACIÓN MASIVA DE CLIENTES
+        // ==========================================
+
+        [HttpPost("importar-masivo")]
+        [ProducesResponseType(typeof(ClienteImportResponseDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ImportarMasivo([FromBody] List<ClienteImportItemDto> items)
+        {
+            if (items == null || items.Count == 0)
+            {
+                return BadRequest(new { mensaje = "No se enviaron clientes para procesar." });
+            }
+
+            var result = await _clientesService.ImportarClientesMasivoAsync(items);
+            return Ok(result);
+        }
+
+        [HttpGet("plantilla")]
+        [AllowAnonymous]
+        public IActionResult DescargarPlantilla()
+        {
+            var bytes = _clientesService.GenerarPlantillaClientesCsv();
+            return File(bytes, "text/csv; charset=utf-8", "Plantilla_Clientes_ContaFlow.csv");
+        }
     }
 }

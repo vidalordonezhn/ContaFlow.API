@@ -158,4 +158,33 @@ namespace ContaFlow.API.Features.Clientes.DTOs
         public string MetodoPago { get; set; } = string.Empty;
         public string MesAplicado { get; set; } = string.Empty;
     }
+
+    // === DTOs PARA IMPORTACIÓN MASIVA DE CLIENTES ===
+
+    public class ClienteImportItemDto
+    {
+        public string Rtn { get; set; } = string.Empty;
+        public string NombreRazonSocial { get; set; } = string.Empty;
+        public string? NombreComercial { get; set; }
+        public string? TipoPersona { get; set; } // Juridica o Natural
+        public string? Rubro { get; set; }
+        public string? ContrasenaSAR { get; set; }
+        public string? EmailPrincipal { get; set; }
+        public string? EmailSecundario { get; set; }
+        public string? Telefono { get; set; }
+        public string? TelefonoWhatsApp { get; set; }
+        public string? Direccion { get; set; }
+        public decimal CuotaMensual { get; set; } = 0.00m;
+        public int DiaCobro { get; set; } = 5;
+        public string? Notas { get; set; }
+    }
+
+    public class ClienteImportResponseDto
+    {
+        public int TotalProcesados { get; set; }
+        public int TotalGuardados { get; set; }
+        public int TotalActualizados { get; set; }
+        public int TotalErrores { get; set; }
+        public List<string> Mensajes { get; set; } = new();
+    }
 }
