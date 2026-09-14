@@ -41,6 +41,7 @@ namespace ContaFlow.API.Features.Clientes
                     Direccion = c.Direccion,
                     CuotaMensual = c.CuotaMensual,
                     DiaCobro = c.DiaCobro,
+                    ContrasenaSAR = c.ContrasenaSAR,
                     Activo = c.Activo,
                     Notas = c.Notas,
                     FechaCreacion = c.FechaCreacion,
@@ -82,6 +83,7 @@ namespace ContaFlow.API.Features.Clientes
                 Direccion = c.Direccion,
                 CuotaMensual = c.CuotaMensual,
                 DiaCobro = c.DiaCobro,
+                ContrasenaSAR = c.ContrasenaSAR,
                 Activo = c.Activo,
                 Notas = c.Notas,
                 FechaCreacion = c.FechaCreacion,
@@ -114,6 +116,7 @@ namespace ContaFlow.API.Features.Clientes
                 Direccion = dto.Direccion?.Trim(),
                 CuotaMensual = dto.CuotaMensual,
                 DiaCobro = dto.DiaCobro,
+                ContrasenaSAR = dto.ContrasenaSAR?.Trim(),
                 Notas = dto.Notas?.Trim(),
                 Activo = true
             };
@@ -147,6 +150,19 @@ namespace ContaFlow.API.Features.Clientes
                 throw new KeyNotFoundException("Cliente no encontrado.");
             }
 
+            if (!string.IsNullOrWhiteSpace(dto.Rtn))
+            {
+                var rtnLimpio = dto.Rtn.Trim().Replace("-", "").Replace(" ", "");
+                if (rtnLimpio != cliente.Rtn)
+                {
+                    if (await _context.Clientes.AnyAsync(c => c.Rtn == rtnLimpio && c.Id != id))
+                    {
+                        throw new InvalidOperationException($"Ya existe otro cliente con el RTN '{dto.Rtn}'.");
+                    }
+                    cliente.Rtn = rtnLimpio;
+                }
+            }
+
             cliente.NombreRazonSocial = dto.NombreRazonSocial.Trim();
             cliente.NombreComercial = dto.NombreComercial?.Trim();
             cliente.TipoPersona = dto.TipoPersona;
@@ -158,6 +174,7 @@ namespace ContaFlow.API.Features.Clientes
             cliente.Direccion = dto.Direccion?.Trim();
             cliente.CuotaMensual = dto.CuotaMensual;
             cliente.DiaCobro = dto.DiaCobro;
+            cliente.ContrasenaSAR = dto.ContrasenaSAR?.Trim();
             cliente.Activo = dto.Activo;
             cliente.Notas = dto.Notas?.Trim();
 

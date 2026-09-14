@@ -96,6 +96,39 @@ namespace ContaFlow.API.Data
                     ""ModificadoPor"" VARCHAR(100)
                 );
 
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""ContrasenaSAR"" VARCHAR(100);
+
+                CREATE TABLE IF NOT EXISTS catalogo_rubros (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""Nombre"" VARCHAR(150) NOT NULL UNIQUE,
+                    ""Descripcion"" VARCHAR(300),
+                    ""Activo"" BOOLEAN NOT NULL DEFAULT TRUE,
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
+
+                CREATE TABLE IF NOT EXISTS libros_detalle_items (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""PeriodoFiscalId"" INT NOT NULL REFERENCES periodos_fiscales_sar(""Id"") ON DELETE CASCADE,
+                    ""Correlativo"" INT NOT NULL DEFAULT 1,
+                    ""Fecha"" TIMESTAMP WITH TIME ZONE,
+                    ""Proveedor"" VARCHAR(200),
+                    ""ComprasExentas"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""ComprasGravadas"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""IsvCompras15"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""FacturaNumero"" VARCHAR(50),
+                    ""VentasExentas"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""VentasGravadas"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""IsvVentas15"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Notas"" VARCHAR(300),
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
+
                 -- Columnas para Libros ISV (SAR-210)
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""VentasGravadas15"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""VentasGravadas18"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
@@ -115,6 +148,29 @@ namespace ContaFlow.API.Data
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""ImpuestoDeterminadoPagar"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""SaldoAFavorContribuyente"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
             ");
+
+            // Sembrar catálogo de rubros iniciales si no existen
+            if (!await context.Rubros.AnyAsync())
+            {
+                var rubrosDefault = new[]
+                {
+                    new Rubro { Nombre = "Comercio General", Descripcion = "Compra y venta de mercaderías en general" },
+                    new Rubro { Nombre = "Servicios Profesionales", Descripcion = "Asesorías, contabilidad, legal, auditoría" },
+                    new Rubro { Nombre = "Restaurante / Alimentos", Descripcion = "Gastronomía, comidas preparadas, cafeterías" },
+                    new Rubro { Nombre = "Construcción e Ingeniería", Descripcion = "Edificaciones, obras civiles, contratistas" },
+                    new Rubro { Nombre = "Salud y Farmacia", Descripcion = "Clínicas, médicos, odontología, farmacias" },
+                    new Rubro { Nombre = "Transporte y Logística", Descripcion = "Carga pesada, encomiendas, transporte de pasajeros" },
+                    new Rubro { Nombre = "Tecnología e Informática", Descripcion = "Desarrollo de software, soporte, telecomunicaciones" },
+                    new Rubro { Nombre = "Bienes Raíces", Descripcion = "Arrendamientos, compra-venta inmobiliaria" },
+                    new Rubro { Nombre = "Taller / Automotriz", Descripcion = "Mecánica, repuestos, llanteras" },
+                    new Rubro { Nombre = "Educación y Capacitación", Descripcion = "Institutos, escuelas, tutorías" },
+                    new Rubro { Nombre = "Agricultura y Ganadería", Descripcion = "Cultivos, producción agropecuaria" },
+                    new Rubro { Nombre = "Otro Rubro", Descripcion = "Otras actividades económicas" }
+                };
+
+                await context.Rubros.AddRangeAsync(rubrosDefault);
+                await context.SaveChangesAsync();
+            }
 
             // Si no hay configuración registrada, creamos la configuración inicial del despacho
             if (!await context.ConfiguracionDespacho.AnyAsync())
@@ -225,7 +281,8 @@ namespace ContaFlow.API.Data
                     NombreRazonSocial = "Distribuidora Comercial del Valle S. de R.L.",
                     NombreComercial = "Super Valle",
                     TipoPersona = "Juridica",
-                    Rubro = "Comercio y Distribución",
+                    Rubro = "Comercio General",
+                    ContrasenaSAR = "ValleSAR2026*",
                     CuotaMensual = 3500.00m,
                     DiaCobro = 5,
                     Telefono = "+504 2235-8899",
@@ -244,7 +301,8 @@ namespace ContaFlow.API.Data
                     NombreRazonSocial = "Dra. Elena Sofía Morales Rivera",
                     NombreComercial = "Clínica Dental Morales",
                     TipoPersona = "Natural",
-                    Rubro = "Servicios Médicos / Salud",
+                    Rubro = "Salud y Farmacia",
+                    ContrasenaSAR = "Dental2026*",
                     CuotaMensual = 2000.00m,
                     DiaCobro = 10,
                     Telefono = "+504 2238-1122",
@@ -263,7 +321,8 @@ namespace ContaFlow.API.Data
                     NombreRazonSocial = "Inversiones y Construcciones Lempira S.A.",
                     NombreComercial = "Constructora Lempira",
                     TipoPersona = "Juridica",
-                    Rubro = "Construcción y Bienes Raíces",
+                    Rubro = "Construcción e Ingeniería",
+                    ContrasenaSAR = "LempiraSAR2026*",
                     CuotaMensual = 5000.00m,
                     DiaCobro = 1,
                     Telefono = "+504 2550-3344",

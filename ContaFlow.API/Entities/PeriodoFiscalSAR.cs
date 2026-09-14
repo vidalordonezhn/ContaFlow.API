@@ -48,5 +48,7 @@ namespace ContaFlow.API.Entities
         public decimal? MontoRetenciones { get; set; }
         public string? NumeroDeclaracionSAR { get; set; }
         public string Estado { get; set; } = "Pendiente"; // Pendiente, EnProceso, Liquidado, Declarado
+
+        public ICollection<LibroDetalleItem> DetalleItems { get; set; } = new List<LibroDetalleItem>();
     }
 }

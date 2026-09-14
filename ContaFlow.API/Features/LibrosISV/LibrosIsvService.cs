@@ -33,7 +33,6 @@ namespace ContaFlow.API.Features.LibrosISV
 
             if (periodo == null)
             {
-                // Buscar saldo a favor del mes anterior si existe
                 var mesAnterior = mes == 1 ? 12 : mes - 1;
                 var anioAnterior = mes == 1 ? anio - 1 : anio;
                 var periodoAnterior = await _context.PeriodosFiscalesSAR
@@ -64,6 +63,8 @@ namespace ContaFlow.API.Features.LibrosISV
                 ClienteId = cliente.Id,
                 ClienteNombre = cliente.NombreRazonSocial,
                 ClienteRtn = cliente.Rtn,
+                ClienteContrasenaSAR = cliente.ContrasenaSAR,
+                CuotaHonorarios = cliente.CuotaMensual,
                 Mes = mes,
                 Anio = anio,
                 MesNombre = $"{nombreMes} {anio}",
@@ -92,6 +93,281 @@ namespace ContaFlow.API.Features.LibrosISV
                 NumeroDeclaracionSAR = periodo.NumeroDeclaracionSAR,
                 Estado = periodo.Estado
             };
+        }
+
+        public async Task<LibroDetalleCompletoDto> GetLibroDetalleCompletoAsync(int clienteId, int anio, int mes)
+        {
+            var cliente = await _context.Clientes.FindAsync(clienteId);
+            if (cliente == null)
+            {
+                throw new KeyNotFoundException("Cliente no encontrado.");
+            }
+
+            var periodo = await _context.PeriodosFiscalesSAR
+                .Include(p => p.DetalleItems)
+                .FirstOrDefaultAsync(p => p.ClienteId == clienteId && p.Anio == anio && p.Mes == mes);
+
+            if (periodo == null)
+            {
+                periodo = new PeriodoFiscalSAR
+                {
+                    ClienteId = clienteId,
+                    Anio = anio,
+                    Mes = mes,
+                    Estado = "Pendiente"
+                };
+                _context.PeriodosFiscalesSAR.Add(periodo);
+                await _context.SaveChangesAsync();
+            }
+
+            var culture = new CultureInfo("es-HN");
+            var nombreMes = culture.DateTimeFormat.GetMonthName(mes);
+            nombreMes = char.ToUpper(nombreMes[0]) + nombreMes.Substring(1);
+
+            var items = (periodo.DetalleItems ?? new List<LibroDetalleItem>())
+                .OrderBy(d => d.Correlativo)
+                .Select(d => new LibroPartidaItemDto
+                {
+                    Id = d.Id,
+                    Correlativo = d.Correlativo,
+                    Fecha = d.Fecha?.ToString("yyyy-MM-dd"),
+                    Proveedor = d.Proveedor,
+                    ComprasExentas = d.ComprasExentas,
+                    ComprasGravadas = d.ComprasGravadas,
+                    IsvCompras15 = d.IsvCompras15 > 0 ? d.IsvCompras15 : Math.Round(d.ComprasGravadas * 0.15m, 2),
+                    FacturaNumero = d.FacturaNumero,
+                    VentasExentas = d.VentasExentas,
+                    VentasGravadas = d.VentasGravadas,
+                    IsvVentas15 = d.IsvVentas15 > 0 ? d.IsvVentas15 : Math.Round(d.VentasGravadas * 0.15m, 2),
+                    Notas = d.Notas
+                })
+                .ToList();
+
+            var totalComprasExentas = items.Sum(i => i.ComprasExentas);
+            var totalComprasGravadas = items.Sum(i => i.ComprasGravadas);
+            var totalIsvCompras15 = items.Sum(i => i.IsvCompras15);
+
+            var totalVentasExentas = items.Sum(i => i.VentasExentas);
+            var totalVentasGravadas = items.Sum(i => i.VentasGravadas);
+            var totalIsvVentas15 = items.Sum(i => i.IsvVentas15);
+
+            return new LibroDetalleCompletoDto
+            {
+                PeriodoFiscalId = periodo.Id,
+                ClienteId = cliente.Id,
+                ClienteNombre = cliente.NombreRazonSocial,
+                ClienteRtn = cliente.Rtn,
+                ClienteContrasenaSAR = cliente.ContrasenaSAR,
+                CuotaHonorarios = cliente.CuotaMensual,
+                Mes = mes,
+                Anio = anio,
+                MesNombre = $"{nombreMes}, {anio}",
+                Items = items,
+                TotalComprasExentas = totalComprasExentas,
+                TotalComprasGravadas = totalComprasGravadas,
+                TotalIsvCompras15 = totalIsvCompras15,
+                TotalVentasExentas = totalVentasExentas,
+                TotalVentasGravadas = totalVentasGravadas,
+                TotalIsvVentas15 = totalIsvVentas15,
+                ServiciosProfesionales = cliente.CuotaMensual
+            };
+        }
+
+        public async Task<LibroDetalleCompletoDto> GuardarLibroDetallePartidasAsync(GuardarLibroDetallePartidasRequest request)
+        {
+            var cliente = await _context.Clientes.FindAsync(request.ClienteId);
+            if (cliente == null)
+            {
+                throw new KeyNotFoundException("Cliente no encontrado.");
+            }
+
+            var periodo = await _context.PeriodosFiscalesSAR
+                .Include(p => p.DetalleItems)
+                .FirstOrDefaultAsync(p => p.ClienteId == request.ClienteId && p.Anio == request.Anio && p.Mes == request.Mes);
+
+            if (periodo == null)
+            {
+                periodo = new PeriodoFiscalSAR
+                {
+                    ClienteId = request.ClienteId,
+                    Anio = request.Anio,
+                    Mes = request.Mes,
+                    Estado = "Pendiente"
+                };
+                _context.PeriodosFiscalesSAR.Add(periodo);
+                await _context.SaveChangesAsync();
+            }
+
+            // Eliminar items anteriores y reinsertar
+            _context.LibroDetalleItems.RemoveRange(periodo.DetalleItems);
+
+            int correlativo = 1;
+            var nuevosItems = new List<LibroDetalleItem>();
+
+            foreach (var itemDto in request.Items)
+            {
+                DateTime? fecha = null;
+                if (!string.IsNullOrWhiteSpace(itemDto.Fecha) && DateTime.TryParse(itemDto.Fecha, out var parsedDate))
+                {
+                    fecha = DateTime.SpecifyKind(parsedDate, DateTimeKind.Utc);
+                }
+
+                var comprasGrav = Math.Round(itemDto.ComprasGravadas, 2);
+                var comprasExentas = Math.Round(itemDto.ComprasExentas, 2);
+                var isvCompras = Math.Round(comprasGrav * 0.15m, 2);
+
+                var ventasGrav = Math.Round(itemDto.VentasGravadas, 2);
+                var ventasExentas = Math.Round(itemDto.VentasExentas, 2);
+                var isvVentas = Math.Round(ventasGrav * 0.15m, 2);
+
+                nuevosItems.Add(new LibroDetalleItem
+                {
+                    PeriodoFiscalId = periodo.Id,
+                    Correlativo = correlativo++,
+                    Fecha = fecha,
+                    Proveedor = itemDto.Proveedor?.Trim(),
+                    ComprasExentas = comprasExentas,
+                    ComprasGravadas = comprasGrav,
+                    IsvCompras15 = isvCompras,
+                    FacturaNumero = itemDto.FacturaNumero?.Trim(),
+                    VentasExentas = ventasExentas,
+                    VentasGravadas = ventasGrav,
+                    IsvVentas15 = isvVentas,
+                    Notas = itemDto.Notas?.Trim()
+                });
+            }
+
+            await _context.LibroDetalleItems.AddRangeAsync(nuevosItems);
+
+            // Sincronizar totales en el periodo fiscal
+            periodo.ComprasExentas = nuevosItems.Sum(x => x.ComprasExentas);
+            periodo.ComprasGravadas15 = nuevosItems.Sum(x => x.ComprasGravadas);
+            periodo.IsvCredito15 = nuevosItems.Sum(x => x.IsvCompras15);
+            periodo.TotalCreditoFiscal = periodo.IsvCredito15;
+
+            periodo.VentasExentas = nuevosItems.Sum(x => x.VentasExentas);
+            periodo.VentasGravadas15 = nuevosItems.Sum(x => x.VentasGravadas);
+            periodo.IsvDebito15 = nuevosItems.Sum(x => x.IsvVentas15);
+            periodo.TotalDebitoFiscal = periodo.IsvDebito15;
+
+            var diferencia = periodo.TotalDebitoFiscal - periodo.TotalCreditoFiscal - periodo.SaldoAFavorPeriodoAnterior - periodo.RetencionesISVRecibidas;
+            if (diferencia > 0)
+            {
+                periodo.ImpuestoDeterminadoPagar = Math.Round(diferencia, 2);
+                periodo.SaldoAFavorContribuyente = 0;
+            }
+            else
+            {
+                periodo.ImpuestoDeterminadoPagar = 0;
+                periodo.SaldoAFavorContribuyente = Math.Round(Math.Abs(diferencia), 2);
+            }
+
+            periodo.MontoImpuestoISV = periodo.ImpuestoDeterminadoPagar;
+            if (nuevosItems.Count > 0 && !periodo.LiquidadoSAR)
+            {
+                periodo.Estado = "EnProceso";
+            }
+
+            await _context.SaveChangesAsync();
+
+            return await GetLibroDetalleCompletoAsync(request.ClienteId, request.Anio, request.Mes);
+        }
+
+        public byte[] GenerarPlantillaDetalleCsv()
+        {
+            var csv = new StringBuilder();
+            csv.AppendLine("Correlativo,Fecha,Proveedor,ComprasExentas,ComprasGravadas,FacturaNumero,VentasExentas,VentasGravadas,Notas");
+            csv.AppendLine("1,2026-08-01,BOMBOSTORE,0.00,1699.00,001033,0.00,1800.00,");
+            csv.AppendLine("2,2026-08-02,BURGER KING,0.00,251.30,001034,0.00,1300.00,");
+            csv.AppendLine("3,2026-08-03,TALLER Y AUTO PARTES,0.00,348.50,001035,0.00,600.00,");
+            csv.AppendLine("4,2026-08-04,VARIEDADES BICO,0.00,421.74,001036,0.00,0.00,");
+            csv.AppendLine("5,2026-08-05,PAGSA,2790.00,0.00,001040,0.00,7500.00,");
+            csv.AppendLine("6,2026-08-06,ALINSA,0.00,68.70,001042,600.00,0.00,");
+
+            return Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
+        }
+
+        public async Task<LibroDetalleCompletoDto> ImportarDetallePartidasCsvAsync(int clienteId, int anio, int mes, string csvContent)
+        {
+            var lines = csvContent.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length <= 1)
+            {
+                throw new InvalidOperationException("El archivo CSV no contiene filas de datos.");
+            }
+
+            var items = new List<LibroPartidaItemDto>();
+            int seq = 1;
+
+            for (int i = 1; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                var cols = SplitCsvLine(line);
+                if (cols.Count < 3) continue;
+
+                var fechaStr = cols.Count > 1 ? cols[1].Trim() : "";
+                var provStr = cols.Count > 2 ? cols[2].Trim() : "";
+
+                decimal.TryParse(cols.Count > 3 ? cols[3].Trim() : "0", NumberStyles.Any, CultureInfo.InvariantCulture, out var comprasEx);
+                decimal.TryParse(cols.Count > 4 ? cols[4].Trim() : "0", NumberStyles.Any, CultureInfo.InvariantCulture, out var comprasGrav);
+                var facturaNum = cols.Count > 5 ? cols[5].Trim() : "";
+                decimal.TryParse(cols.Count > 6 ? cols[6].Trim() : "0", NumberStyles.Any, CultureInfo.InvariantCulture, out var ventasEx);
+                decimal.TryParse(cols.Count > 7 ? cols[7].Trim() : "0", NumberStyles.Any, CultureInfo.InvariantCulture, out var ventasGrav);
+                var notas = cols.Count > 8 ? cols[8].Trim() : "";
+
+                items.Add(new LibroPartidaItemDto
+                {
+                    Correlativo = seq++,
+                    Fecha = fechaStr,
+                    Proveedor = provStr,
+                    ComprasExentas = comprasEx,
+                    ComprasGravadas = comprasGrav,
+                    IsvCompras15 = Math.Round(comprasGrav * 0.15m, 2),
+                    FacturaNumero = facturaNum,
+                    VentasExentas = ventasEx,
+                    VentasGravadas = ventasGrav,
+                    IsvVentas15 = Math.Round(ventasGrav * 0.15m, 2),
+                    Notas = notas
+                });
+            }
+
+            var saveRequest = new GuardarLibroDetallePartidasRequest
+            {
+                ClienteId = clienteId,
+                Anio = anio,
+                Mes = mes,
+                Items = items
+            };
+
+            return await GuardarLibroDetallePartidasAsync(saveRequest);
+        }
+
+        private static List<string> SplitCsvLine(string line)
+        {
+            var result = new List<string>();
+            var inQuotes = false;
+            var current = new StringBuilder();
+
+            for (int i = 0; i < line.Length; i++)
+            {
+                var c = line[i];
+                if (c == '\"')
+                {
+                    inQuotes = !inQuotes;
+                }
+                else if (c == ',' && !inQuotes)
+                {
+                    result.Add(current.ToString());
+                    current.Clear();
+                }
+                else
+                {
+                    current.Append(c);
+                }
+            }
+            result.Add(current.ToString());
+            return result;
         }
 
         public async Task<LibroIsvDetalleDto> GuardarLibroIsvAsync(LibroIsvGuardarDto dto)

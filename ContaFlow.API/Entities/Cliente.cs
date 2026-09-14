@@ -20,6 +20,7 @@ namespace ContaFlow.API.Entities
         // Configuración de Honorarios
         public decimal CuotaMensual { get; set; } = 0.00m;
         public int DiaCobro { get; set; } = 5; // Día del mes sugerido para cobro
+        public string? ContrasenaSAR { get; set; } // Contraseña Portal SAR Oficina Virtual
         public bool Activo { get; set; } = true;
         public string? Notas { get; set; }
 

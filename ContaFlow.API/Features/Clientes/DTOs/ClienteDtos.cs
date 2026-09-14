@@ -18,6 +18,7 @@ namespace ContaFlow.API.Features.Clientes.DTOs
         public string? Direccion { get; set; }
         public decimal CuotaMensual { get; set; }
         public int DiaCobro { get; set; }
+        public string? ContrasenaSAR { get; set; }
         public bool Activo { get; set; }
         public string? Notas { get; set; }
         public DateTime FechaCreacion { get; set; }
@@ -43,6 +44,8 @@ namespace ContaFlow.API.Features.Clientes.DTOs
 
         public string? Rubro { get; set; } // Comercio, Servicios, Restaurante, Construcción, Médico, etc.
 
+        public string? ContrasenaSAR { get; set; }
+
         [EmailAddress(ErrorMessage = "Correo electrónico inválido")]
         public string? EmailPrincipal { get; set; }
 
@@ -65,6 +68,8 @@ namespace ContaFlow.API.Features.Clientes.DTOs
 
     public class ClienteUpdateDto
     {
+        public string? Rtn { get; set; }
+
         [Required(ErrorMessage = "La razón social o nombre completo es obligatorio")]
         public string NombreRazonSocial { get; set; } = string.Empty;
 
@@ -73,6 +78,8 @@ namespace ContaFlow.API.Features.Clientes.DTOs
         public string TipoPersona { get; set; } = "Juridica";
 
         public string? Rubro { get; set; }
+
+        public string? ContrasenaSAR { get; set; }
 
         [EmailAddress(ErrorMessage = "Correo electrónico inválido")]
         public string? EmailPrincipal { get; set; }

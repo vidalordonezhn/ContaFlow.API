@@ -9,6 +9,8 @@ namespace ContaFlow.API.Features.LibrosISV.DTOs
         public int ClienteId { get; set; }
         public string ClienteNombre { get; set; } = string.Empty;
         public string ClienteRtn { get; set; } = string.Empty;
+        public string? ClienteContrasenaSAR { get; set; }
+        public decimal CuotaHonorarios { get; set; }
         public int Mes { get; set; }
         public int Anio { get; set; }
         public string MesNombre { get; set; } = string.Empty;
@@ -70,6 +72,68 @@ namespace ContaFlow.API.Features.LibrosISV.DTOs
 
         public bool MarcarComoLiquidado { get; set; }
         public string? NumeroDeclaracionSAR { get; set; }
+    }
+
+    // DTOs para Partidas Detalladas del Libro Diario / Hoja de Trabajo
+    public class LibroPartidaItemDto
+    {
+        public int Id { get; set; }
+        public int Correlativo { get; set; }
+        public string? Fecha { get; set; } // yyyy-MM-dd
+        public string? Proveedor { get; set; }
+
+        // Compras
+        public decimal ComprasExentas { get; set; }
+        public decimal ComprasGravadas { get; set; }
+        public decimal IsvCompras15 { get; set; }
+        public string? FacturaNumero { get; set; }
+
+        // Ventas
+        public decimal VentasExentas { get; set; }
+        public decimal VentasGravadas { get; set; }
+        public decimal IsvVentas15 { get; set; }
+        public string? Notas { get; set; }
+    }
+
+    public class LibroDetalleCompletoDto
+    {
+        public int PeriodoFiscalId { get; set; }
+        public int ClienteId { get; set; }
+        public string ClienteNombre { get; set; } = string.Empty;
+        public string ClienteRtn { get; set; } = string.Empty;
+        public string? ClienteContrasenaSAR { get; set; }
+        public decimal CuotaHonorarios { get; set; }
+        public int Mes { get; set; }
+        public int Anio { get; set; }
+        public string MesNombre { get; set; } = string.Empty;
+
+        public List<LibroPartidaItemDto> Items { get; set; } = new();
+
+        // Totales calculados
+        public decimal TotalComprasExentas { get; set; }
+        public decimal TotalComprasGravadas { get; set; }
+        public decimal TotalIsvCompras15 { get; set; }
+
+        public decimal TotalVentasExentas { get; set; }
+        public decimal TotalVentasGravadas { get; set; }
+        public decimal TotalIsvVentas15 { get; set; }
+
+        // Resumen de liquidación
+        public decimal ImpuestoCompras => TotalIsvCompras15;
+        public decimal ImpuestoVentas => TotalIsvVentas15;
+        public decimal ImpuestoAPagar => Math.Max(0, ImpuestoVentas - ImpuestoCompras);
+        public decimal SaldoAFavor => Math.Max(0, ImpuestoCompras - ImpuestoVentas);
+        public decimal ServiciosProfesionales { get; set; }
+        public decimal TotalAPagarLps => ImpuestoAPagar + ServiciosProfesionales;
+    }
+
+    public class GuardarLibroDetallePartidasRequest
+    {
+        public int ClienteId { get; set; }
+        public int Mes { get; set; }
+        public int Anio { get; set; }
+        public decimal? ServiciosProfesionales { get; set; }
+        public List<LibroPartidaItemDto> Items { get; set; } = new();
     }
 
     public class LibroIsvImportItemDto

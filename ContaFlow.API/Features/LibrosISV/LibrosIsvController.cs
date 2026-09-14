@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ContaFlow.API.Data;
@@ -47,6 +49,62 @@ namespace ContaFlow.API.Features.LibrosISV
         {
             var result = await _service.GuardarLibroIsvAsync(dto);
             return Ok(result);
+        }
+
+        // Endpoints de Detalle / Hoja de Trabajo Diario Oficial
+        [HttpGet("detalle/{clienteId:int}/{anio:int}/{mes:int}")]
+        [ProducesResponseType(typeof(LibroDetalleCompletoDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetLibroDetalle(int clienteId, int anio, int mes)
+        {
+            try
+            {
+                var result = await _service.GetLibroDetalleCompletoAsync(clienteId, anio, mes);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { mensaje = ex.Message });
+            }
+        }
+
+        [HttpPost("detalle/guardar")]
+        [ProducesResponseType(typeof(LibroDetalleCompletoDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GuardarDetallePartidas([FromBody] GuardarLibroDetallePartidasRequest request)
+        {
+            try
+            {
+                var result = await _service.GuardarLibroDetallePartidasAsync(request);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { mensaje = ex.Message });
+            }
+        }
+
+        [HttpGet("detalle/plantilla")]
+        [AllowAnonymous]
+        public IActionResult DescargarPlantillaDetalle()
+        {
+            var bytes = _service.GenerarPlantillaDetalleCsv();
+            return File(bytes, "text/csv; charset=utf-8", "Plantilla_Detalle_Compras_Ventas_ContaFlow.csv");
+        }
+
+        public record ImportarDetalleCsvRequest(int ClienteId, int Anio, int Mes, string CsvContent);
+
+        [HttpPost("detalle/importar-csv")]
+        [ProducesResponseType(typeof(LibroDetalleCompletoDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ImportarDetalleCsv([FromBody] ImportarDetalleCsvRequest request)
+        {
+            try
+            {
+                var result = await _service.ImportarDetallePartidasCsvAsync(request.ClienteId, request.Anio, request.Mes, request.CsvContent);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { mensaje = ex.Message });
+            }
         }
 
         [HttpGet("plantilla")]

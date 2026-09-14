@@ -25,6 +25,8 @@ namespace ContaFlow.API.Data
         public DbSet<ConfiguracionDespacho> ConfiguracionDespacho => Set<ConfiguracionDespacho>();
         public DbSet<AutorizacionCAI> AutorizacionesCAI => Set<AutorizacionCAI>();
         public DbSet<SeguimientoFiscalAnual> SeguimientosFiscalesAnuales => Set<SeguimientoFiscalAnual>();
+        public DbSet<Rubro> Rubros => Set<Rubro>();
+        public DbSet<LibroDetalleItem> LibroDetalleItems => Set<LibroDetalleItem>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -39,6 +41,15 @@ namespace ContaFlow.API.Data
             modelBuilder.Entity<ConfiguracionDespacho>().ToTable("configuracion_despacho");
             modelBuilder.Entity<AutorizacionCAI>().ToTable("autorizaciones_cai");
             modelBuilder.Entity<SeguimientoFiscalAnual>().ToTable("seguimientos_fiscales_anuales");
+            modelBuilder.Entity<Rubro>().ToTable("catalogo_rubros").HasIndex(r => r.Nombre).IsUnique();
+            modelBuilder.Entity<LibroDetalleItem>().ToTable("libros_detalle_items");
+
+            // Relación LibroDetalleItem -> PeriodoFiscalSAR
+            modelBuilder.Entity<LibroDetalleItem>()
+                .HasOne(d => d.PeriodoFiscal)
+                .WithMany(pf => pf.DetalleItems)
+                .HasForeignKey(d => d.PeriodoFiscalId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Relación SeguimientoFiscalAnual -> Cliente
             modelBuilder.Entity<SeguimientoFiscalAnual>()
