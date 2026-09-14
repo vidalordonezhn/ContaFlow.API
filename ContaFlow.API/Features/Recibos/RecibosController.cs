@@ -100,17 +100,63 @@ namespace ContaFlow.API.Features.Recibos
                 }
                 else if (string.IsNullOrWhiteSpace(numeroRecibo))
                 {
-                    var count = await _context.Recibos.CountAsync(r => r.FechaEmision.Year == anioActual) + 1;
-                    numeroRecibo = $"FAC-{anioActual}-{count:D4}";
+                    var prefix = $"FAC-{anioActual}-";
+                    var maxExistente = await _context.Recibos
+                        .Where(r => r.NumeroRecibo.StartsWith(prefix))
+                        .Select(r => r.NumeroRecibo)
+                        .ToListAsync();
+
+                    int nextNum = 1;
+                    if (maxExistente.Count > 0)
+                    {
+                        var numeros = maxExistente
+                            .Select(nr => nr.Substring(prefix.Length))
+                            .Where(s => int.TryParse(s, out _))
+                            .Select(int.Parse);
+                        if (numeros.Any())
+                        {
+                            nextNum = numeros.Max() + 1;
+                        }
+                    }
+                    numeroRecibo = $"{prefix}{nextNum:D4}";
                 }
             }
             else
             {
                 if (string.IsNullOrWhiteSpace(numeroRecibo))
                 {
-                    var count = await _context.Recibos.CountAsync(r => r.FechaEmision.Year == anioActual) + 1;
-                    numeroRecibo = $"REC-{anioActual}-{count:D4}";
+                    var prefix = $"REC-{anioActual}-";
+                    var maxExistente = await _context.Recibos
+                        .Where(r => r.NumeroRecibo.StartsWith(prefix))
+                        .Select(r => r.NumeroRecibo)
+                        .ToListAsync();
+
+                    int nextNum = 1;
+                    if (maxExistente.Count > 0)
+                    {
+                        var numeros = maxExistente
+                            .Select(nr => nr.Substring(prefix.Length))
+                            .Where(s => int.TryParse(s, out _))
+                            .Select(int.Parse);
+                        if (numeros.Any())
+                        {
+                            nextNum = numeros.Max() + 1;
+                        }
+                    }
+                    numeroRecibo = $"{prefix}{nextNum:D4}";
                 }
+            }
+
+            // Garantizar unicidad absoluta
+            if (await _context.Recibos.AnyAsync(r => r.NumeroRecibo == numeroRecibo))
+            {
+                var baseNum = numeroRecibo;
+                var sufijo = 2;
+                while (await _context.Recibos.AnyAsync(r => r.NumeroRecibo == $"{baseNum}-{sufijo}"))
+                {
+                    sufijo++;
+                }
+                numeroRecibo = $"{baseNum}-{sufijo}";
             }
 
             // Validar / Calcular Totales e Ítems

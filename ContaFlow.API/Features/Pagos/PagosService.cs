@@ -70,8 +70,25 @@ namespace ContaFlow.API.Features.Pagos
             if (dto.GenerarRecibo)
             {
                 var anioActual = DateTime.UtcNow.Year;
-                var conteoRecibos = await _context.Recibos.CountAsync(r => r.FechaEmision.Year == anioActual) + 1;
-                var numeroInterno = $"REC-{anioActual}-{conteoRecibos:D4}";
+                var prefix = $"REC-{anioActual}-";
+                var maxExistente = await _context.Recibos
+                    .Where(r => r.NumeroRecibo.StartsWith(prefix))
+                    .Select(r => r.NumeroRecibo)
+                    .ToListAsync();
+
+                int nextNum = 1;
+                if (maxExistente.Count > 0)
+                {
+                    var numeros = maxExistente
+                        .Select(nr => nr.Substring(prefix.Length))
+                        .Where(s => int.TryParse(s, out _))
+                        .Select(int.Parse);
+                    if (numeros.Any())
+                    {
+                        nextNum = numeros.Max() + 1;
+                    }
+                }
+                var numeroInterno = $"{prefix}{nextNum:D4}";
 
                 // Buscar autorización CAI activa y con correlativos disponibles
                 var caiActivo = await _context.AutorizacionesCAI
@@ -97,6 +114,18 @@ namespace ContaFlow.API.Features.Pagos
 
                     // Consumir el correlativo de forma atómica
                     caiActivo.CorrelativoActual += 1;
+                }
+
+                // Garantizar unicidad absoluta
+                if (await _context.Recibos.AnyAsync(r => r.NumeroRecibo == numeroRecibo))
+                {
+                    var baseNum = numeroRecibo;
+                    var sufijo = 2;
+                    while (await _context.Recibos.AnyAsync(r => r.NumeroRecibo == $"{baseNum}-{sufijo}"))
+                    {
+                        sufijo++;
+                    }
+                    numeroRecibo = $"{baseNum}-{sufijo}";
                 }
 
                 var recibo = new Recibo
