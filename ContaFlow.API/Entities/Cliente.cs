@@ -17,6 +17,15 @@ namespace ContaFlow.API.Entities
         public string? TelefonoWhatsApp { get; set; }
         public string? Direccion { get; set; }
         
+        // Identificación & Ubicación
+        public string? Dni { get; set; } // DNI / Identidad (13 dígitos)
+        public string? RepresentanteLegalNombre { get; set; }
+        public string? RepresentanteLegalRtn { get; set; }
+        public int? DepartamentoId { get; set; }
+        public string? DepartamentoNombre { get; set; }
+        public int? MunicipioId { get; set; }
+        public string? MunicipioNombre { get; set; }
+
         // Configuración de Honorarios
         public decimal CuotaMensual { get; set; } = 0.00m;
         public int DiaCobro { get; set; } = 5; // Día del mes sugerido para cobro

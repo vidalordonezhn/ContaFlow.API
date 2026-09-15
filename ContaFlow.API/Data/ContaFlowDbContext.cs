@@ -26,6 +26,8 @@ namespace ContaFlow.API.Data
         public DbSet<AutorizacionCAI> AutorizacionesCAI => Set<AutorizacionCAI>();
         public DbSet<SeguimientoFiscalAnual> SeguimientosFiscalesAnuales => Set<SeguimientoFiscalAnual>();
         public DbSet<Rubro> Rubros => Set<Rubro>();
+        public DbSet<Departamento> Departamentos => Set<Departamento>();
+        public DbSet<Municipio> Municipios => Set<Municipio>();
         public DbSet<LibroDetalleItem> LibroDetalleItems => Set<LibroDetalleItem>();
         public DbSet<LibroVentaDetalleItem> LibrosVentasItems => Set<LibroVentaDetalleItem>();
         public DbSet<LibroCompraDetalleItem> LibrosComprasItems => Set<LibroCompraDetalleItem>();
@@ -46,6 +48,13 @@ namespace ContaFlow.API.Data
             modelBuilder.Entity<AutorizacionCAI>().ToTable("autorizaciones_cai");
             modelBuilder.Entity<SeguimientoFiscalAnual>().ToTable("seguimientos_fiscales_anuales");
             modelBuilder.Entity<Rubro>().ToTable("catalogo_rubros").HasIndex(r => r.Nombre).IsUnique();
+            modelBuilder.Entity<Departamento>().ToTable("departamentos").HasIndex(d => d.Codigo).IsUnique();
+            modelBuilder.Entity<Municipio>().ToTable("municipios").HasIndex(m => m.Codigo).IsUnique();
+            modelBuilder.Entity<Municipio>()
+                .HasOne(m => m.Departamento)
+                .WithMany(d => d.Municipios)
+                .HasForeignKey(m => m.DepartamentoId)
+                .OnDelete(DeleteBehavior.Cascade);
             modelBuilder.Entity<LibroDetalleItem>().ToTable("libros_detalle_items");
             modelBuilder.Entity<LibroVentaDetalleItem>().ToTable("libros_ventas_items");
             modelBuilder.Entity<LibroCompraDetalleItem>().ToTable("libros_compras_items");

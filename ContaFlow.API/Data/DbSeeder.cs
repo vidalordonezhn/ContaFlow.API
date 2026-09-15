@@ -107,6 +107,27 @@ namespace ContaFlow.API.Data
                 );
 
                 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""ContrasenaSAR"" VARCHAR(100);
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""Dni"" VARCHAR(20);
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""RepresentanteLegalNombre"" VARCHAR(150);
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""RepresentanteLegalRtn"" VARCHAR(20);
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""DepartamentoId"" INT;
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""DepartamentoNombre"" VARCHAR(100);
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""MunicipioId"" INT;
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""MunicipioNombre"" VARCHAR(100);
+
+                CREATE TABLE IF NOT EXISTS departamentos (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""Codigo"" VARCHAR(10) NOT NULL UNIQUE,
+                    ""Nombre"" VARCHAR(100) NOT NULL,
+                    ""Cabecera"" VARCHAR(100)
+                );
+
+                CREATE TABLE IF NOT EXISTS municipios (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""DepartamentoId"" INT NOT NULL REFERENCES departamentos(""Id"") ON DELETE CASCADE,
+                    ""Codigo"" VARCHAR(10) NOT NULL UNIQUE,
+                    ""Nombre"" VARCHAR(150) NOT NULL
+                );
 
                 CREATE TABLE IF NOT EXISTS catalogo_rubros (
                     ""Id"" SERIAL PRIMARY KEY,
@@ -274,6 +295,35 @@ namespace ContaFlow.API.Data
 
                 await context.Rubros.AddRangeAsync(rubrosDefault);
                 await context.SaveChangesAsync();
+            }
+
+            // Sembrar catálogo de Departamentos y Municipios de Honduras si no existen
+            if (!await context.Departamentos.AnyAsync())
+            {
+                var catalogo = HondurasGeoData.ObtenerCatalogoCompleto();
+                foreach (var depDto in catalogo)
+                {
+                    var dep = new Departamento
+                    {
+                        Codigo = depDto.Codigo,
+                        Nombre = depDto.Nombre,
+                        Cabecera = depDto.Cabecera
+                    };
+                    context.Departamentos.Add(dep);
+                    await context.SaveChangesAsync();
+
+                    foreach (var munDto in depDto.Municipios)
+                    {
+                        var mun = new Municipio
+                        {
+                            DepartamentoId = dep.Id,
+                            Codigo = munDto.Codigo,
+                            Nombre = munDto.Nombre
+                        };
+                        context.Municipios.Add(mun);
+                    }
+                    await context.SaveChangesAsync();
+                }
             }
 
             // Si no hay configuración registrada, creamos la configuración inicial del despacho

@@ -16,6 +16,13 @@ namespace ContaFlow.API.Features.Clientes.DTOs
         public string? Telefono { get; set; }
         public string? TelefonoWhatsApp { get; set; }
         public string? Direccion { get; set; }
+        public string? Dni { get; set; }
+        public string? RepresentanteLegalNombre { get; set; }
+        public string? RepresentanteLegalRtn { get; set; }
+        public int? DepartamentoId { get; set; }
+        public string? DepartamentoNombre { get; set; }
+        public int? MunicipioId { get; set; }
+        public string? MunicipioNombre { get; set; }
         public decimal CuotaMensual { get; set; }
         public int DiaCobro { get; set; }
         public string? ContrasenaSAR { get; set; }
@@ -45,6 +52,20 @@ namespace ContaFlow.API.Features.Clientes.DTOs
         public string? Rubro { get; set; } // Comercio, Servicios, Restaurante, Construcción, Médico, etc.
 
         public string? ContrasenaSAR { get; set; }
+
+        public string? Dni { get; set; }
+
+        public string? RepresentanteLegalNombre { get; set; }
+
+        public string? RepresentanteLegalRtn { get; set; }
+
+        public int? DepartamentoId { get; set; }
+
+        public string? DepartamentoNombre { get; set; }
+
+        public int? MunicipioId { get; set; }
+
+        public string? MunicipioNombre { get; set; }
 
         [EmailAddress(ErrorMessage = "Correo electrónico inválido")]
         public string? EmailPrincipal { get; set; }
@@ -80,6 +101,20 @@ namespace ContaFlow.API.Features.Clientes.DTOs
         public string? Rubro { get; set; }
 
         public string? ContrasenaSAR { get; set; }
+
+        public string? Dni { get; set; }
+
+        public string? RepresentanteLegalNombre { get; set; }
+
+        public string? RepresentanteLegalRtn { get; set; }
+
+        public int? DepartamentoId { get; set; }
+
+        public string? DepartamentoNombre { get; set; }
+
+        public int? MunicipioId { get; set; }
+
+        public string? MunicipioNombre { get; set; }
 
         [EmailAddress(ErrorMessage = "Correo electrónico inválido")]
         public string? EmailPrincipal { get; set; }
@@ -169,6 +204,11 @@ namespace ContaFlow.API.Features.Clientes.DTOs
         public string? TipoPersona { get; set; } // Juridica o Natural
         public string? Rubro { get; set; }
         public string? ContrasenaSAR { get; set; }
+        public string? Dni { get; set; }
+        public string? RepresentanteLegalNombre { get; set; }
+        public string? RepresentanteLegalRtn { get; set; }
+        public string? DepartamentoNombre { get; set; }
+        public string? MunicipioNombre { get; set; }
         public string? EmailPrincipal { get; set; }
         public string? EmailSecundario { get; set; }
         public string? Telefono { get; set; }
