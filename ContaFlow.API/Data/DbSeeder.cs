@@ -230,7 +230,7 @@ namespace ContaFlow.API.Data
                     ""LiquidadoSAR"" BOOLEAN NOT NULL DEFAULT FALSE,
                     ""FechaLiquidacion"" TIMESTAMP WITH TIME ZONE,
                     ""NumeroDeclaracionSAR"" VARCHAR(100),
-                    ""MontoImpuestoISV"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""MontoImpuestoISV"" NUMERIC(18, 2),
                     ""MontoRetenciones"" NUMERIC(18, 2),
                     ""Estado"" VARCHAR(30) NOT NULL DEFAULT 'Pendiente',
                     ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
@@ -239,9 +239,11 @@ namespace ContaFlow.API.Data
                     ""ModificadoPor"" VARCHAR(100)
                 );
 
-                -- Asegurar columnas críticas en tablas existentes
+                -- Asegurar columnas críticas y nullability en tablas existentes
                 ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""MontoRetenciones"" NUMERIC(18, 2);
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""MontoImpuestoISV"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
+                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""MontoImpuestoISV"" NUMERIC(18, 2);
+                ALTER TABLE periodos_fiscales_sar ALTER COLUMN ""MontoImpuestoISV"" DROP NOT NULL;
+                ALTER TABLE periodos_fiscales_sar ALTER COLUMN ""MontoRetenciones"" DROP NOT NULL;
                 ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""Monto"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
                 ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""PagoHonorarioId"" INT;
                 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""Dni"" VARCHAR(20);
