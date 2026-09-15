@@ -14,8 +14,35 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Base de datos: Entity Framework Core + PostgreSQL ─────────────
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? builder.Configuration["DATABASE_URL"] 
+    ?? string.Empty;
+
+var effectiveConnectionString = rawConnectionString;
+
+if (!string.IsNullOrWhiteSpace(rawConnectionString) && 
+    (rawConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || 
+     rawConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
+{
+    try
+    {
+        var uri = new Uri(rawConnectionString);
+        var userInfo = uri.UserInfo.Split(':');
+        var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "";
+        var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+        var database = uri.AbsolutePath.TrimStart('/');
+        var port = uri.Port > 0 ? uri.Port : 5432;
+
+        effectiveConnectionString = $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true;";
+    }
+    catch
+    {
+        effectiveConnectionString = rawConnectionString;
+    }
+}
+
 builder.Services.AddDbContext<ContaFlowDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(effectiveConnectionString));
 
 // ── Acceso al contexto HTTP (para auditoría automática) ───────────
 builder.Services.AddHttpContextAccessor();
