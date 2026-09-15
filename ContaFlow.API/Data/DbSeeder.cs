@@ -9,6 +9,9 @@ namespace ContaFlow.API.Data
     {
         public static async Task SeedAsync(ContaFlowDbContext context)
         {
+            // Asegurar que la base de datos y todas las tablas de EF Core existan
+            await context.Database.EnsureCreatedAsync();
+
             // Asegurar que la tabla configuracion_despacho exista
             await context.Database.ExecuteSqlRawAsync(@"
                 CREATE TABLE IF NOT EXISTS configuracion_despacho (
