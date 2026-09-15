@@ -290,7 +290,7 @@ namespace ContaFlow.API.Features.Clientes
             // 3. Comprobantes / Recibos y Facturas
             var recibos = await _context.Recibos
                 .Include(r => r.PagoHonorario)
-                .Where(r => r.PagoHonorario.ClienteId == id)
+                .Where(r => r.ClienteId == id || (r.PagoHonorario != null && r.PagoHonorario.ClienteId == id))
                 .OrderByDescending(r => r.FechaEmision)
                 .ToListAsync();
 
@@ -304,13 +304,185 @@ namespace ContaFlow.API.Features.Clientes
                 MontoEnLetras = r.MontoEnLetras,
                 FechaEmision = r.FechaEmision,
                 Concepto = r.Concepto,
-                MetodoPago = r.PagoHonorario.MetodoPago,
-                MesAplicado = r.PagoHonorario.MesAplicado
+                MetodoPago = r.MetodoPago ?? r.PagoHonorario?.MetodoPago ?? "Transferencia",
+                MesAplicado = r.PagoHonorario?.MesAplicado ?? (!string.IsNullOrWhiteSpace(r.Concepto) ? r.Concepto : $"{r.FechaEmision:MMMM yyyy}")
             }).ToList();
+
+            var ahora = DateTime.UtcNow;
+            var mesActual = ahora.Month;
+            var anioActual = ahora.Year;
 
             var totalDeclaraciones = declaracionesAnuales.Count(d => d.Estado == "Declarado") + declaracionesMensuales.Count(m => m.LiquidadoSAR);
             var totalImpuestoSAR = declaracionesAnuales.Sum(d => d.MontoDeclarado ?? 0) + declaracionesMensuales.Sum(m => m.MontoImpuestoISV ?? 0);
             var totalHonorarios = comprobantes.Sum(c => c.Monto);
+
+            // 1. EVALUACIÓN FINANCIERA Y COBRANZA
+            decimal cuota = clienteDto.CuotaMensual;
+            decimal totalEsperado = 0m;
+            decimal saldoHonorarios = 0m;
+            string estadoCobranza = "AlDia";
+            string mensajeCobranza = string.Empty;
+            int mesesDeuda = 0;
+
+            if (cuota <= 0)
+            {
+                estadoCobranza = "PorGestion";
+                mensajeCobranza = "Servicios Contables por Evento / Gestión Específica";
+                totalEsperado = 0;
+                saldoHonorarios = totalHonorarios;
+            }
+            else
+            {
+                totalEsperado = cuota * mesActual;
+                saldoHonorarios = totalHonorarios - totalEsperado;
+
+                if (saldoHonorarios > 0)
+                {
+                    estadoCobranza = "SaldoAFavor";
+                    int mesesCubiertos = (int)(totalHonorarios / cuota);
+                    if (mesesCubiertos >= 12)
+                    {
+                        mensajeCobranza = $"Cubierto todo el año {anioActual} (Saldo a favor: L. {saldoHonorarios:N2})";
+                    }
+                    else
+                    {
+                        var mesCubiertoNombre = mesesCubiertos >= 1 && mesesCubiertos <= 12 ? meses[mesesCubiertos] : $"{mesesCubiertos} meses";
+                        mensajeCobranza = $"Cubierto hasta {mesCubiertoNombre} {anioActual} (Saldo a favor: L. {saldoHonorarios:N2})";
+                    }
+                }
+                else if (saldoHonorarios == 0)
+                {
+                    estadoCobranza = "AlDia";
+                    mensajeCobranza = $"Al día con sus cuotas hasta {meses[mesActual]} {anioActual}";
+                }
+                else
+                {
+                    estadoCobranza = "Pendiente";
+                    decimal deuda = Math.Abs(saldoHonorarios);
+                    mesesDeuda = (int)Math.Ceiling(deuda / cuota);
+                    mensajeCobranza = $"Pendiente de pago: L. {deuda:N2} ({mesesDeuda} {(mesesDeuda == 1 ? "mes" : "meses")} de retraso)";
+                }
+            }
+
+            // 2. SEMÁFORO ISV MENSUAL (DÍA 10)
+            string semaforoIsv = "AlDia";
+            string detalleIsv = string.Empty;
+
+            var periodoActual = declaracionesMensuales.FirstOrDefault(m => m.Anio == anioActual && m.Mes == mesActual);
+            var periodoAnterior = declaracionesMensuales.FirstOrDefault(m => m.Anio == anioActual && m.Mes == (mesActual > 1 ? mesActual - 1 : 12));
+
+            if (periodoActual != null && periodoActual.LiquidadoSAR)
+            {
+                semaforoIsv = "AlDia";
+                detalleIsv = $"Declaración de {meses[mesActual]} liquidada ante el SAR";
+            }
+            else if (periodoAnterior != null && !periodoAnterior.LiquidadoSAR)
+            {
+                semaforoIsv = "Pendiente";
+                detalleIsv = $"Declaración de {periodoAnterior.MesNombre} pendiente de presentar al SAR (Venció día 10)";
+            }
+            else if (periodoActual != null && periodoActual.FacturasRecibidas)
+            {
+                semaforoIsv = "EnProceso";
+                detalleIsv = $"Facturas de {meses[mesActual]} recibidas, listas para cálculo de ISV";
+            }
+            else
+            {
+                semaforoIsv = ahora.Day > 10 ? "Pendiente" : "EnProceso";
+                detalleIsv = $"Período {meses[mesActual]}: Esperando facturas para declaración ISV";
+            }
+
+            // 3. SEMÁFORO PAGOS A CUENTA & ANUAL
+            string semaforoPagos = "AlDia";
+            string detallePagos = string.Empty;
+
+            var p1 = declaracionesAnuales.FirstOrDefault(d => d.Anio == anioActual && d.TipoObligacion == "PAGO_CUENTA_1");
+            var p2 = declaracionesAnuales.FirstOrDefault(d => d.Anio == anioActual && d.TipoObligacion == "PAGO_CUENTA_2");
+            var p3 = declaracionesAnuales.FirstOrDefault(d => d.Anio == anioActual && d.TipoObligacion == "PAGO_CUENTA_3");
+            var isr = declaracionesAnuales.FirstOrDefault(d => d.Anio == anioActual && d.TipoObligacion == "ISR_ANUAL");
+
+            if (mesActual <= 4)
+            {
+                if (isr != null && isr.Estado == "Declarado")
+                {
+                    semaforoPagos = "AlDia";
+                    detallePagos = $"ISR Anual {anioActual - 1} presentado exitosamente";
+                }
+                else
+                {
+                    semaforoPagos = "ProximoVencimiento";
+                    detallePagos = $"Declaración Anual ISR vence el 30 de Abril";
+                }
+            }
+            else if (mesActual <= 6)
+            {
+                if (p1 != null && p1.Estado == "Declarado")
+                {
+                    semaforoPagos = "AlDia";
+                    detallePagos = "1er Pago a Cuenta (30 Jun) cancelado";
+                }
+                else
+                {
+                    semaforoPagos = "ProximoVencimiento";
+                    detallePagos = "1er Pago a Cuenta vence el 30 de Junio";
+                }
+            }
+            else if (mesActual <= 9)
+            {
+                if (p2 != null && p2.Estado == "Declarado")
+                {
+                    semaforoPagos = "AlDia";
+                    detallePagos = "2do Pago a Cuenta (30 Sep) cancelado";
+                }
+                else
+                {
+                    semaforoPagos = "ProximoVencimiento";
+                    detallePagos = "2do Pago a Cuenta vence el 30 de Septiembre";
+                }
+            }
+            else
+            {
+                if (p3 != null && p3.Estado == "Declarado")
+                {
+                    semaforoPagos = "AlDia";
+                    detallePagos = "3er Pago a Cuenta (31 Dic) cancelado";
+                }
+                else
+                {
+                    semaforoPagos = "ProximoVencimiento";
+                    detallePagos = "3er Pago a Cuenta vence el 31 de Diciembre";
+                }
+            }
+
+            // 4. SEMÁFORO CAI / FACTURACIÓN PROPIA
+            string semaforoCai = "SinCAI";
+            string detalleCai = "Sin CAI registrado en el despacho";
+            int? diasVencimientoCai = null;
+
+            var caiActivo = await _context.AutorizacionesCAI
+                .Where(c => c.Activo)
+                .OrderByDescending(c => c.Id)
+                .FirstOrDefaultAsync();
+
+            if (caiActivo != null)
+            {
+                diasVencimientoCai = caiActivo.DiasRestantes;
+                if (caiActivo.EstaVencido)
+                {
+                    semaforoCai = "Vencido";
+                    detalleCai = $"CAI Vencido el {caiActivo.FechaLimiteEmision:dd/MM/yyyy}";
+                }
+                else if (caiActivo.DiasRestantes <= 30)
+                {
+                    semaforoCai = "ProximoAVencer";
+                    detalleCai = $"Vence en {caiActivo.DiasRestantes} días ({caiActivo.FechaLimiteEmision:dd/MM/yyyy})";
+                }
+                else
+                {
+                    semaforoCai = "Vigente";
+                    detalleCai = $"Vigente hasta {caiActivo.FechaLimiteEmision:dd/MM/yyyy} ({caiActivo.DiasRestantes} días restantes)";
+                }
+            }
 
             return new ExpedienteFiscalDto
             {
@@ -320,7 +492,19 @@ namespace ContaFlow.API.Features.Clientes
                 ComprobantesEmitidos = comprobantes,
                 TotalDeclaracionesPresentadas = totalDeclaraciones,
                 TotalImpuestoLiquidadoSAR = totalImpuestoSAR,
-                TotalHonorariosPagados = totalHonorarios
+                TotalHonorariosPagados = totalHonorarios,
+                TotalHonorariosEsperados = totalEsperado,
+                SaldoHonorarios = saldoHonorarios,
+                EstadoCobranza = estadoCobranza,
+                MensajeCobranza = mensajeCobranza,
+                MesesDeuda = mesesDeuda,
+                SemaforoISV = semaforoIsv,
+                DetalleISV = detalleIsv,
+                SemaforoPagosACuenta = semaforoPagos,
+                DetallePagosACuenta = detallePagos,
+                SemaforoCAI = semaforoCai,
+                DetalleCAI = detalleCai,
+                DiasVencimientoCAI = diasVencimientoCai
             };
         }
 

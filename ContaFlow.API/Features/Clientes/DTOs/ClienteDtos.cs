@@ -143,10 +143,24 @@ namespace ContaFlow.API.Features.Clientes.DTOs
         public List<PeriodoMensualItemDto> DeclaracionesMensualesISV { get; set; } = new();
         public List<ComprobanteItemDto> ComprobantesEmitidos { get; set; } = new();
         
-        // Resumen
+        // Resumen General
         public int TotalDeclaracionesPresentadas { get; set; }
         public decimal TotalImpuestoLiquidadoSAR { get; set; }
         public decimal TotalHonorariosPagados { get; set; }
+        public decimal TotalHonorariosEsperados { get; set; }
+        public decimal SaldoHonorarios { get; set; }
+        public string EstadoCobranza { get; set; } = "AlDia"; // "AlDia", "SaldoAFavor", "Pendiente", "PorGestion"
+        public string MensajeCobranza { get; set; } = string.Empty;
+        public int MesesDeuda { get; set; } = 0;
+
+        // Semáforo Cumplimiento SAR
+        public string SemaforoISV { get; set; } = "AlDia"; // "AlDia", "EnProceso", "Pendiente"
+        public string DetalleISV { get; set; } = string.Empty;
+        public string SemaforoPagosACuenta { get; set; } = "AlDia"; // "AlDia", "ProximoVencimiento", "Pendiente"
+        public string DetallePagosACuenta { get; set; } = string.Empty;
+        public string SemaforoCAI { get; set; } = "Vigente"; // "Vigente", "ProximoAVencer", "Vencido", "SinCAI"
+        public string DetalleCAI { get; set; } = string.Empty;
+        public int? DiasVencimientoCAI { get; set; }
     }
 
     public class DeclaracionAnualItemDto
