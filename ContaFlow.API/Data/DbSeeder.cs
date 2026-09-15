@@ -231,12 +231,27 @@ namespace ContaFlow.API.Data
                     ""FechaLiquidacion"" TIMESTAMP WITH TIME ZONE,
                     ""NumeroDeclaracionSAR"" VARCHAR(100),
                     ""MontoImpuestoISV"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""MontoRetenciones"" NUMERIC(18, 2),
                     ""Estado"" VARCHAR(30) NOT NULL DEFAULT 'Pendiente',
                     ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                     ""CreadoPor"" VARCHAR(100),
                     ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
                     ""ModificadoPor"" VARCHAR(100)
                 );
+
+                -- Asegurar columnas críticas en tablas existentes
+                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""MontoRetenciones"" NUMERIC(18, 2);
+                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""MontoImpuestoISV"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""Monto"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
+                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""PagoHonorarioId"" INT;
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""Dni"" VARCHAR(20);
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""RepresentanteLegalNombre"" VARCHAR(150);
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""RepresentanteLegalRtn"" VARCHAR(20);
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""DepartamentoId"" INT;
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""DepartamentoNombre"" VARCHAR(100);
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""MunicipioId"" INT;
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""MunicipioNombre"" VARCHAR(100);
+                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""ContrasenaSAR"" VARCHAR(100);
 
                 -- Seguimientos Fiscales Anuales
                 CREATE TABLE IF NOT EXISTS seguimientos_fiscales_anuales (
