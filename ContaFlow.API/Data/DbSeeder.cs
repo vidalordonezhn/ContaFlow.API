@@ -9,11 +9,85 @@ namespace ContaFlow.API.Data
     {
         public static async Task SeedAsync(ContaFlowDbContext context)
         {
-            // Asegurar que la base de datos y todas las tablas de EF Core existan
-            await context.Database.EnsureCreatedAsync();
-
-            // Asegurar que la tabla configuracion_despacho exista
+            // ── 1. Crear todas las tablas en PostgreSQL si no existen ────────────────
             await context.Database.ExecuteSqlRawAsync(@"
+                -- Departamentos
+                CREATE TABLE IF NOT EXISTS departamentos (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""Codigo"" VARCHAR(10) NOT NULL UNIQUE,
+                    ""Nombre"" VARCHAR(100) NOT NULL,
+                    ""Cabecera"" VARCHAR(100)
+                );
+
+                -- Municipios
+                CREATE TABLE IF NOT EXISTS municipios (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""DepartamentoId"" INT NOT NULL REFERENCES departamentos(""Id"") ON DELETE CASCADE,
+                    ""Codigo"" VARCHAR(10) NOT NULL UNIQUE,
+                    ""Nombre"" VARCHAR(150) NOT NULL
+                );
+
+                -- Catálogo de Rubros
+                CREATE TABLE IF NOT EXISTS catalogo_rubros (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""Nombre"" VARCHAR(150) NOT NULL UNIQUE,
+                    ""Descripcion"" VARCHAR(300),
+                    ""Activo"" BOOLEAN NOT NULL DEFAULT TRUE,
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
+
+                -- Usuarios
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""Username"" VARCHAR(100) NOT NULL UNIQUE,
+                    ""Nombre"" VARCHAR(150) NOT NULL,
+                    ""Email"" VARCHAR(150),
+                    ""Telefono"" VARCHAR(50),
+                    ""PasswordHash"" VARCHAR(300) NOT NULL,
+                    ""Rol"" VARCHAR(50) NOT NULL DEFAULT 'Contador',
+                    ""Activo"" BOOLEAN NOT NULL DEFAULT TRUE,
+                    ""UltimoAcceso"" TIMESTAMP WITH TIME ZONE,
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
+
+                -- Clientes
+                CREATE TABLE IF NOT EXISTS clientes (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""Rtn"" VARCHAR(20) NOT NULL UNIQUE,
+                    ""NombreRazonSocial"" VARCHAR(200) NOT NULL,
+                    ""NombreComercial"" VARCHAR(200),
+                    ""TipoPersona"" VARCHAR(50) NOT NULL DEFAULT 'Natural',
+                    ""Rubro"" VARCHAR(100),
+                    ""ContrasenaSAR"" VARCHAR(100),
+                    ""Dni"" VARCHAR(20),
+                    ""RepresentanteLegalNombre"" VARCHAR(150),
+                    ""RepresentanteLegalRtn"" VARCHAR(20),
+                    ""DepartamentoId"" INT,
+                    ""DepartamentoNombre"" VARCHAR(100),
+                    ""MunicipioId"" INT,
+                    ""MunicipioNombre"" VARCHAR(100),
+                    ""CuotaMensual"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""DiaCobro"" INT NOT NULL DEFAULT 1,
+                    ""Telefono"" VARCHAR(50),
+                    ""TelefonoWhatsApp"" VARCHAR(50),
+                    ""EmailPrincipal"" VARCHAR(120),
+                    ""EmailSecundario"" VARCHAR(120),
+                    ""Direccion"" VARCHAR(300),
+                    ""Notas"" VARCHAR(500),
+                    ""Activo"" BOOLEAN NOT NULL DEFAULT TRUE,
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
+
+                -- Configuración Despacho
                 CREATE TABLE IF NOT EXISTS configuracion_despacho (
                     ""Id"" SERIAL PRIMARY KEY,
                     ""NombreDespacho"" VARCHAR(200) NOT NULL,
@@ -53,10 +127,8 @@ namespace ContaFlow.API.Data
                     ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
                     ""ModificadoPor"" VARCHAR(100)
                 );
-            ");
 
-            // Asegurar que la tabla autorizaciones_cai exista y tenga columnas fiscales
-            await context.Database.ExecuteSqlRawAsync(@"
+                -- Autorizaciones CAI
                 CREATE TABLE IF NOT EXISTS autorizaciones_cai (
                     ""Id"" SERIAL PRIMARY KEY,
                     ""Cai"" VARCHAR(45) NOT NULL,
@@ -77,22 +149,96 @@ namespace ContaFlow.API.Data
                     ""ModificadoPor"" VARCHAR(100)
                 );
 
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""NumeroFiscal"" VARCHAR(60);
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""AutorizacionCAIId"" INT;
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""Cai"" VARCHAR(50);
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""RangoAutorizado"" VARCHAR(100);
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""FechaLimiteEmision"" TIMESTAMP WITH TIME ZONE;
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""ClienteId"" INT;
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""NombreCliente"" VARCHAR(200);
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""RtnCliente"" VARCHAR(50);
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""TipoComprobante"" VARCHAR(50) DEFAULT 'SinCAI';
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""MetodoPago"" VARCHAR(50);
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""Anulado"" BOOLEAN NOT NULL DEFAULT FALSE;
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""MotivoAnulacion"" VARCHAR(300);
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""ItemsJson"" TEXT;
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""Subtotal"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE recibos ADD COLUMN IF NOT EXISTS ""Impuesto"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
+                -- Pagos de Honorarios
+                CREATE TABLE IF NOT EXISTS pagos_honorarios (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""ClienteId"" INT NOT NULL REFERENCES clientes(""Id"") ON DELETE CASCADE,
+                    ""Monto"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""FechaPago"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""MetodoPago"" VARCHAR(50) NOT NULL DEFAULT 'Transferencia',
+                    ""ReferenciaBancaria"" VARCHAR(100),
+                    ""MesAplicado"" VARCHAR(50) NOT NULL DEFAULT '',
+                    ""Estado"" VARCHAR(30) NOT NULL DEFAULT 'Completado',
+                    ""Observaciones"" VARCHAR(300),
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
 
+                -- Recibos
+                CREATE TABLE IF NOT EXISTS recibos (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""PagoHonorarioId"" INT REFERENCES pagos_honorarios(""Id"") ON DELETE SET NULL,
+                    ""TipoComprobante"" VARCHAR(50) DEFAULT 'SinCAI',
+                    ""NumeroRecibo"" VARCHAR(50) NOT NULL UNIQUE,
+                    ""NumeroFiscal"" VARCHAR(60),
+                    ""AutorizacionCAIId"" INT REFERENCES autorizaciones_cai(""Id"") ON DELETE SET NULL,
+                    ""Cai"" VARCHAR(50),
+                    ""RangoAutorizado"" VARCHAR(100),
+                    ""FechaLimiteEmision"" TIMESTAMP WITH TIME ZONE,
+                    ""FechaEmision"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""Concepto"" VARCHAR(300) NOT NULL DEFAULT '',
+                    ""Subtotal"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Impuesto"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Monto"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""MontoEnLetras"" VARCHAR(300),
+                    ""ClienteId"" INT REFERENCES clientes(""Id"") ON DELETE SET NULL,
+                    ""NombreCliente"" VARCHAR(200),
+                    ""RtnCliente"" VARCHAR(50),
+                    ""MetodoPago"" VARCHAR(50),
+                    ""Anulado"" BOOLEAN NOT NULL DEFAULT FALSE,
+                    ""MotivoAnulacion"" VARCHAR(300),
+                    ""ItemsJson"" TEXT,
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
+
+                -- Periodos Fiscales SAR
+                CREATE TABLE IF NOT EXISTS periodos_fiscales_sar (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""ClienteId"" INT NOT NULL REFERENCES clientes(""Id"") ON DELETE CASCADE,
+                    ""Mes"" INT NOT NULL,
+                    ""Anio"" INT NOT NULL,
+                    ""FacturasRecibidas"" BOOLEAN NOT NULL DEFAULT FALSE,
+                    ""FechaRecepcionFacturas"" TIMESTAMP WITH TIME ZONE,
+                    ""CantidadFacturasVenta"" INT NOT NULL DEFAULT 0,
+                    ""CantidadFacturasCompra"" INT NOT NULL DEFAULT 0,
+                    ""NotasDocumentos"" VARCHAR(300),
+                    ""VentasGravadas15"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""VentasGravadas18"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""VentasExentas"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""IsvDebito15"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""IsvDebito18"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""TotalDebitoFiscal"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""ComprasGravadas15"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""ComprasGravadas18"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""ComprasExentas"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""ImportacionesGravadas15"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""IsvCredito15"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""IsvCredito18"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""TotalCreditoFiscal"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""SaldoAFavorPeriodoAnterior"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""RetencionesISVRecibidas"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Retenciones15"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Retenciones18"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""ServiciosProfesionales"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""ImpuestoDeterminadoPagar"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""SaldoAFavorContribuyente"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""LiquidadoSAR"" BOOLEAN NOT NULL DEFAULT FALSE,
+                    ""FechaLiquidacion"" TIMESTAMP WITH TIME ZONE,
+                    ""NumeroDeclaracionSAR"" VARCHAR(100),
+                    ""MontoImpuestoISV"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Estado"" VARCHAR(30) NOT NULL DEFAULT 'Pendiente',
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
+
+                -- Seguimientos Fiscales Anuales
                 CREATE TABLE IF NOT EXISTS seguimientos_fiscales_anuales (
                     ""Id"" SERIAL PRIMARY KEY,
                     ""ClienteId"" INT NOT NULL REFERENCES clientes(""Id"") ON DELETE CASCADE,
@@ -109,33 +255,13 @@ namespace ContaFlow.API.Data
                     ""ModificadoPor"" VARCHAR(100)
                 );
 
-                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""ContrasenaSAR"" VARCHAR(100);
-                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""Dni"" VARCHAR(20);
-                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""RepresentanteLegalNombre"" VARCHAR(150);
-                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""RepresentanteLegalRtn"" VARCHAR(20);
-                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""DepartamentoId"" INT;
-                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""DepartamentoNombre"" VARCHAR(100);
-                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""MunicipioId"" INT;
-                ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ""MunicipioNombre"" VARCHAR(100);
-
-                CREATE TABLE IF NOT EXISTS departamentos (
+                -- Servicios Catálogo
+                CREATE TABLE IF NOT EXISTS servicios_catalogo (
                     ""Id"" SERIAL PRIMARY KEY,
-                    ""Codigo"" VARCHAR(10) NOT NULL UNIQUE,
-                    ""Nombre"" VARCHAR(100) NOT NULL,
-                    ""Cabecera"" VARCHAR(100)
-                );
-
-                CREATE TABLE IF NOT EXISTS municipios (
-                    ""Id"" SERIAL PRIMARY KEY,
-                    ""DepartamentoId"" INT NOT NULL REFERENCES departamentos(""Id"") ON DELETE CASCADE,
-                    ""Codigo"" VARCHAR(10) NOT NULL UNIQUE,
-                    ""Nombre"" VARCHAR(150) NOT NULL
-                );
-
-                CREATE TABLE IF NOT EXISTS catalogo_rubros (
-                    ""Id"" SERIAL PRIMARY KEY,
-                    ""Nombre"" VARCHAR(150) NOT NULL UNIQUE,
-                    ""Descripcion"" VARCHAR(300),
+                    ""Nombre"" VARCHAR(200) NOT NULL,
+                    ""DescripcionDefault"" VARCHAR(300),
+                    ""PrecioDefault"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
+                    ""Categoria"" VARCHAR(100) DEFAULT 'General',
                     ""Activo"" BOOLEAN NOT NULL DEFAULT TRUE,
                     ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                     ""CreadoPor"" VARCHAR(100),
@@ -143,6 +269,25 @@ namespace ContaFlow.API.Data
                     ""ModificadoPor"" VARCHAR(100)
                 );
 
+                -- Recordatorios Clientes
+                CREATE TABLE IF NOT EXISTS recordatorios_clientes (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""ClienteId"" INT NOT NULL REFERENCES clientes(""Id"") ON DELETE CASCADE,
+                    ""Tipo"" VARCHAR(50) NOT NULL DEFAULT 'SAR',
+                    ""Titulo"" VARCHAR(150),
+                    ""Mensaje"" TEXT NOT NULL,
+                    ""Canal"" VARCHAR(50) NOT NULL DEFAULT 'WhatsApp',
+                    ""Estado"" VARCHAR(50) NOT NULL DEFAULT 'Pendiente',
+                    ""FechaEnvio"" TIMESTAMP WITH TIME ZONE,
+                    ""TelefonoDestino"" VARCHAR(50),
+                    ""EmailDestino"" VARCHAR(120),
+                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreadoPor"" VARCHAR(100),
+                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
+                    ""ModificadoPor"" VARCHAR(100)
+                );
+
+                -- Libros Detalle Items
                 CREATE TABLE IF NOT EXISTS libros_detalle_items (
                     ""Id"" SERIAL PRIMARY KEY,
                     ""PeriodoFiscalId"" INT NOT NULL REFERENCES periodos_fiscales_sar(""Id"") ON DELETE CASCADE,
@@ -163,6 +308,7 @@ namespace ContaFlow.API.Data
                     ""ModificadoPor"" VARCHAR(100)
                 );
 
+                -- Libros Ventas Items
                 CREATE TABLE IF NOT EXISTS libros_ventas_items (
                     ""Id"" SERIAL PRIMARY KEY,
                     ""PeriodoFiscalId"" INT NOT NULL REFERENCES periodos_fiscales_sar(""Id"") ON DELETE CASCADE,
@@ -184,6 +330,7 @@ namespace ContaFlow.API.Data
                     ""ModificadoPor"" VARCHAR(100)
                 );
 
+                -- Libros Compras Items
                 CREATE TABLE IF NOT EXISTS libros_compras_items (
                     ""Id"" SERIAL PRIMARY KEY,
                     ""PeriodoFiscalId"" INT NOT NULL REFERENCES periodos_fiscales_sar(""Id"") ON DELETE CASCADE,
@@ -200,58 +347,6 @@ namespace ContaFlow.API.Data
                     ""Isv18"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
                     ""Total"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
                     ""Notas"" VARCHAR(300),
-                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-                    ""CreadoPor"" VARCHAR(100),
-                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
-                    ""ModificadoPor"" VARCHAR(100)
-                );
-
-                -- Columnas para Libros ISV (SAR-210) & Liquidación
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""VentasGravadas15"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""VentasGravadas18"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""VentasExentas"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""IsvDebito15"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""IsvDebito18"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""TotalDebitoFiscal"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""ComprasGravadas15"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""ComprasGravadas18"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""ComprasExentas"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""ImportacionesGravadas15"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""IsvCredito15"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""IsvCredito18"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""TotalCreditoFiscal"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""SaldoAFavorPeriodoAnterior"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""RetencionesISVRecibidas"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""Retenciones15"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""Retenciones18"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""ServiciosProfesionales"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""ImpuestoDeterminadoPagar"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-                ALTER TABLE periodos_fiscales_sar ADD COLUMN IF NOT EXISTS ""SaldoAFavorContribuyente"" NUMERIC(18, 2) NOT NULL DEFAULT 0;
-
-                CREATE TABLE IF NOT EXISTS servicios_catalogo (
-                    ""Id"" SERIAL PRIMARY KEY,
-                    ""Nombre"" VARCHAR(200) NOT NULL,
-                    ""DescripcionDefault"" VARCHAR(300),
-                    ""PrecioDefault"" NUMERIC(18, 2) NOT NULL DEFAULT 0,
-                    ""Categoria"" VARCHAR(100) DEFAULT 'General',
-                    ""Activo"" BOOLEAN NOT NULL DEFAULT TRUE,
-                    ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-                    ""CreadoPor"" VARCHAR(100),
-                    ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
-                    ""ModificadoPor"" VARCHAR(100)
-                );
-
-                CREATE TABLE IF NOT EXISTS recordatorios_clientes (
-                    ""Id"" SERIAL PRIMARY KEY,
-                    ""ClienteId"" INT NOT NULL REFERENCES clientes(""Id"") ON DELETE CASCADE,
-                    ""Tipo"" VARCHAR(50) NOT NULL DEFAULT 'SAR',
-                    ""Titulo"" VARCHAR(150),
-                    ""Mensaje"" TEXT NOT NULL,
-                    ""Canal"" VARCHAR(50) NOT NULL DEFAULT 'WhatsApp',
-                    ""Estado"" VARCHAR(50) NOT NULL DEFAULT 'Pendiente',
-                    ""FechaEnvio"" TIMESTAMP WITH TIME ZONE,
-                    ""TelefonoDestino"" VARCHAR(50),
-                    ""EmailDestino"" VARCHAR(120),
                     ""FechaCreacion"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                     ""CreadoPor"" VARCHAR(100),
                     ""FechaModificacion"" TIMESTAMP WITH TIME ZONE,
