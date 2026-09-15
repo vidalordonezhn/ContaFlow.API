@@ -542,21 +542,52 @@ namespace ContaFlow.API.Features.LibrosISV
                 .Include(p => p.ComprasDetalleItems)
                 .FirstOrDefaultAsync(p => p.ClienteId == clienteId && p.Anio == anio && p.Mes == mes);
 
+            var mesAnterior = mes == 1 ? 12 : mes - 1;
+            var anioAnterior = mes == 1 ? anio - 1 : anio;
+            var periodoAnterior = await _context.PeriodosFiscalesSAR
+                .Include(p => p.VentasDetalleItems)
+                .Include(p => p.ComprasDetalleItems)
+                .FirstOrDefaultAsync(p => p.ClienteId == clienteId && p.Anio == anioAnterior && p.Mes == mesAnterior);
+
+            decimal saldoCalculadoAnterior = 0m;
+            if (periodoAnterior != null)
+            {
+                if (periodoAnterior.SaldoAFavorContribuyente > 0)
+                {
+                    saldoCalculadoAnterior = periodoAnterior.SaldoAFavorContribuyente;
+                }
+                else
+                {
+                    var debAnt = periodoAnterior.TotalDebitoFiscal > 0 
+                        ? periodoAnterior.TotalDebitoFiscal 
+                        : (periodoAnterior.VentasDetalleItems?.Sum(v => v.Isv15 + v.Isv18) ?? 0);
+                    var credAnt = periodoAnterior.TotalCreditoFiscal > 0 
+                        ? periodoAnterior.TotalCreditoFiscal 
+                        : (periodoAnterior.ComprasDetalleItems?.Sum(c => c.Isv15 + c.Isv18) ?? 0);
+                    var saldoPrevioAnt = periodoAnterior.SaldoAFavorPeriodoAnterior;
+                    var difAnt = debAnt - credAnt - saldoPrevioAnt - periodoAnterior.RetencionesISVRecibidas;
+                    if (difAnt < 0)
+                    {
+                        saldoCalculadoAnterior = Math.Round(Math.Abs(difAnt), 2);
+                    }
+                }
+            }
+
+            var culture = new CultureInfo("es-HN");
+            var nombreMes = culture.DateTimeFormat.GetMonthName(mes);
+            nombreMes = char.ToUpper(nombreMes[0]) + nombreMes.Substring(1);
+
+            var nombreMesAnterior = culture.DateTimeFormat.GetMonthName(mesAnterior);
+            nombreMesAnterior = char.ToUpper(nombreMesAnterior[0]) + nombreMesAnterior.Substring(1);
+
             if (periodo == null)
             {
-                var mesAnterior = mes == 1 ? 12 : mes - 1;
-                var anioAnterior = mes == 1 ? anio - 1 : anio;
-                var periodoAnterior = await _context.PeriodosFiscalesSAR
-                    .FirstOrDefaultAsync(p => p.ClienteId == clienteId && p.Anio == anioAnterior && p.Mes == mesAnterior);
-
-                var saldoAnterior = periodoAnterior?.SaldoAFavorContribuyente ?? 0;
-
                 periodo = new PeriodoFiscalSAR
                 {
                     ClienteId = clienteId,
                     Anio = anio,
                     Mes = mes,
-                    SaldoAFavorPeriodoAnterior = saldoAnterior,
+                    SaldoAFavorPeriodoAnterior = saldoCalculadoAnterior,
                     ServiciosProfesionales = cliente.CuotaMensual,
                     Estado = "Pendiente"
                 };
@@ -564,10 +595,15 @@ namespace ContaFlow.API.Features.LibrosISV
                 _context.PeriodosFiscalesSAR.Add(periodo);
                 await _context.SaveChangesAsync();
             }
-
-            var culture = new CultureInfo("es-HN");
-            var nombreMes = culture.DateTimeFormat.GetMonthName(mes);
-            nombreMes = char.ToUpper(nombreMes[0]) + nombreMes.Substring(1);
+            else
+            {
+                // Si el periodo actual no está liquidado y su saldo anterior es 0 pero el mes anterior tuvo crédito a favor, auto-asignarlo
+                if (!periodo.LiquidadoSAR && periodo.SaldoAFavorPeriodoAnterior == 0 && saldoCalculadoAnterior > 0)
+                {
+                    periodo.SaldoAFavorPeriodoAnterior = saldoCalculadoAnterior;
+                    await _context.SaveChangesAsync();
+                }
+            }
 
             // 1. Mapeo Ventas
             var ventasItems = (periodo.VentasDetalleItems ?? new List<LibroVentaDetalleItem>())
@@ -658,6 +694,8 @@ namespace ContaFlow.API.Features.LibrosISV
                 DebitoFiscalVentas = debito,
                 CreditoFiscalCompras = credito,
                 SaldoAFavorPeriodoAnterior = saldoAnt,
+                SaldoArrastrableMesAnterior = saldoCalculadoAnterior,
+                MesAnteriorNombre = $"{nombreMesAnterior} {anioAnterior}",
                 Retenciones15 = ret15,
                 Retenciones18 = ret18,
                 LiquidacionFinalPagar = liquidacionPagar,
@@ -865,6 +903,29 @@ namespace ContaFlow.API.Features.LibrosISV
             else
             {
                 periodo.Estado = "Pendiente";
+            }
+
+            // Auto-propagar saldo a favor al mes siguiente si no ha sido liquidado
+            var sigMes = request.Mes == 12 ? 1 : request.Mes + 1;
+            var sigAnio = request.Mes == 12 ? request.Anio + 1 : request.Anio;
+            var periodoSiguiente = await _context.PeriodosFiscalesSAR
+                .FirstOrDefaultAsync(p => p.ClienteId == request.ClienteId && p.Anio == sigAnio && p.Mes == sigMes);
+
+            if (periodoSiguiente != null && !periodoSiguiente.LiquidadoSAR)
+            {
+                periodoSiguiente.SaldoAFavorPeriodoAnterior = periodo.SaldoAFavorContribuyente;
+                var difSig = periodoSiguiente.TotalDebitoFiscal - periodoSiguiente.TotalCreditoFiscal - periodoSiguiente.SaldoAFavorPeriodoAnterior - periodoSiguiente.RetencionesISVRecibidas;
+                if (difSig > 0)
+                {
+                    periodoSiguiente.ImpuestoDeterminadoPagar = Math.Round(difSig, 2);
+                    periodoSiguiente.SaldoAFavorContribuyente = 0;
+                }
+                else
+                {
+                    periodoSiguiente.ImpuestoDeterminadoPagar = 0;
+                    periodoSiguiente.SaldoAFavorContribuyente = Math.Round(Math.Abs(difSig), 2);
+                }
+                periodoSiguiente.MontoImpuestoISV = periodoSiguiente.ImpuestoDeterminadoPagar;
             }
 
             await _context.SaveChangesAsync();

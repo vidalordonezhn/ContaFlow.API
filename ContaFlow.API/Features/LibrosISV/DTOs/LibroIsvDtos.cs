@@ -229,6 +229,8 @@ namespace ContaFlow.API.Features.LibrosISV.DTOs
         public decimal CreditoFiscalCompras { get; set; }
         public decimal DiferenciaIsv => DebitoFiscalVentas - CreditoFiscalCompras;
         public decimal SaldoAFavorPeriodoAnterior { get; set; }
+        public decimal SaldoArrastrableMesAnterior { get; set; }
+        public string MesAnteriorNombre { get; set; } = string.Empty;
         public decimal Retenciones15 { get; set; }
         public decimal Retenciones18 { get; set; }
         public decimal TotalRetenciones => Retenciones15 + Retenciones18;
