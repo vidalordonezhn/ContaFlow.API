@@ -129,6 +129,8 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+app.UseDeveloperExceptionPage();
+
 // ── Sembrado automático de base de datos en inicio ────────────────
 using (var scope = app.Services.CreateScope())
 {
@@ -145,17 +147,44 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// ── Middleware Pipeline (Swagger siempre activo en desarrollo local)
+// ── Middleware Pipeline (Swagger siempre activo)
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "ContaFlow API v1");
+    c.RoutePrefix = "swagger";
 });
 
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/", () => Results.Ok(new { status = "online", service = "ContaFlow API", timestamp = DateTime.UtcNow }));
+
+app.MapGet("/api/health", async (ContaFlowDbContext context) =>
+{
+    try
+    {
+        var canConnect = await context.Database.CanConnectAsync();
+        var userCount = canConnect ? await context.Usuarios.CountAsync() : 0;
+        return Results.Ok(new
+        {
+            status = "healthy",
+            databaseConnected = canConnect,
+            usuariosRegistrados = userCount,
+            timestamp = DateTime.UtcNow
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(
+            title: "Database connection failed",
+            detail: ex.ToString(),
+            statusCode: 500
+        );
+    }
+});
 
 app.MapControllers();
 
